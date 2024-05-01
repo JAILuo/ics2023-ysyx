@@ -14,6 +14,8 @@
 ***************************************************************************************/
 
 #include <isa.h>
+#include <cpu/cpu.h>
+#include <stdio.h>
 #include "local-include/reg.h"
 
 const char *regs[] = {
@@ -24,8 +26,13 @@ const char *regs[] = {
 };
 
 void isa_reg_display() {
+    int i = 0;
+    for (i = 0;  i < ARRLEN(regs); i++) {
+//        printf("%s\t0x%08x \t0x%08x\n", regs[i], *regs[i], gpr(i)); 
+        printf("%s\t0x%08x\n", regs[i], gpr(i)); 
+    }
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
-  return 0;
+    return 0;
 }
