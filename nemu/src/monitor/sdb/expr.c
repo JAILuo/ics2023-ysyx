@@ -369,7 +369,7 @@ int eval(int p, int q) {
 /**
  * 检查并转换负号标记。
  */
-void is_neg() {
+void is_neg(void) {
   for (int i = 0; i < nr_token; i++) {
     if (tokens[i].type == TK_SUB) {
       if ((i == 0) ||
@@ -481,23 +481,19 @@ void string_2_num(int p, int q) {
     }
 }
 
-/**
- * 干脆再创建一个预处理的函数，全部放里面好了
- */
-/*
-void pre_process(void) {
+void tokens_pre_processing(void) {
+    is_neg();
 
+    string_2_num(0, nr_token);
 }
-*/
 
 int expr(char *e, bool *success) {
   if (!make_token(e)) {
     *success = false;
     return 0;
   }
-  is_neg();
+  tokens_pre_processing();
 
-  string_2_num(0, nr_token);
   /* TODO: Insert codes to evaluate the expression. */
   int result = eval(0, nr_token - 1);
   // 赋值范围问题，隐式转换，等会解决

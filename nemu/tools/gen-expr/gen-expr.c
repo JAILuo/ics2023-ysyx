@@ -14,6 +14,7 @@
 ***************************************************************************************/
 
 #include <readline/readline.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,14 +29,10 @@ static char code_buf[65536 + 128] = {}; // a little larger than `buf`
 static char *code_format =
 "#include <stdio.h>\n"
 "int main() { "
-"  unsigned long result = %s; "
+"  unsigned result = %s; "
 "  printf(\"%%u\", result); "
 "  return 0; "
 "}";
-
-//static void gen_rand_expr() {
-//  buf[0] = '\0';
-//}
 
 /**
  * 生成小于n的数字
@@ -44,12 +41,26 @@ uint32_t choose(uint32_t n) {
     return rand() % n ;
 }
 
+void gen_space() {
+    // 仅在操作符后插入空格
+    const char *ops = " +-*/";
+    if (strchr(ops, buf[buf_index - 1]) && buf_index > 0) {
+        buf[buf_index++] = ' ';
+    }
+}
+
 void gen_num() {
-    uint32_t num = choose(100); // 只生成最大为 100 的随机数
+    uint32_t num = 0;
+        do {
+        num = choose(100);
+    } while (num == 0); // 确保不生成数字零，以避免除以零
+
     // 将数字转换为 字符串并追加到 buf
     char num_str[4]; // 3位数 + 1个结束符 '\0'
+    gen_space();
+    
     snprintf(num_str, sizeof(num_str), "%u", num);
-    buf[buf_index++] = ' '; // 添加一个空格，以分隔数字和操作符
+
     strcpy(&buf[buf_index], num_str); // 复制数字字符串到 buf
     buf_index += strlen(num_str); // 更新 buf 的索引
 }
@@ -58,18 +69,46 @@ void gen(char c) {
     buf[buf_index++] = c;
 }
 
-void gen_rand_op() {
-    char op[4] = {'+', '-', '*', '/'};
-    int op_index = choose(4); 
-    buf[buf_index++] = op[op_index];
+void gen_rand_op(bool allowTrailingOperator) {
+    if (allowTrailingOperator && buf_index > 0 && buf[buf_index - 1] != ' ') {
+        char op[4] = {'+', '-', '*', '/'};
+        buf[buf_index++] = op[choose(4)];
+    }
 }
 
-void gen_rand_expr() {
-  switch (choose(3)) {
-    case 0: gen_num(); break;
-    case 1: gen('('); gen_rand_expr(); gen(')'); break;
-    default: gen_rand_expr(); gen_rand_op(); gen_rand_expr(); break;
-  }
+void gen_rand_expr(bool allowTrailingOperator) {
+    // 溢出处理
+    if (buf_index > sizeof(buf) - 16) {
+        return;
+    }
+
+    bool hasExpr = false;
+
+    switch (choose(3)) {
+        case 0: 
+            gen_num();
+            hasExpr = true;
+            break;
+        case 1:
+            if (choose(2) == 0) { // 50% 的概率生成嵌套括号
+                gen('(');
+                gen_rand_expr(false); // 嵌套括号内不允许尾随运算符
+                gen(')');
+                hasExpr = true;
+            }
+            break;
+        default: 
+            if (!hasExpr) {
+                gen_num();
+                hasExpr = true;
+            }
+            gen_rand_op(false); // 表达式间的运算符不允许尾随运算符
+            break;
+    }
+
+    if (hasExpr && allowTrailingOperator) {
+        gen_rand_op(true); // 表达式后可以跟一个尾随运算符
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -81,7 +120,7 @@ int main(int argc, char *argv[]) {
   }
   int i;
   for (i = 0; i < loop; i ++) {
-    gen_rand_expr();
+    gen_rand_expr(false);
 
     sprintf(code_buf, code_format, buf);
 
