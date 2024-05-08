@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <stdbool.h>
@@ -231,8 +232,12 @@ static int cmd_p(char *args) {
     }
     bool success = true;
     int result = expr(args, &success);
-    printf("%d\n", result);
-
+    if (success == false) {
+        printf("error eval.\n");
+        return 0;
+    }
+    //printf("%"PRIu32"\n", result);
+    printf("%d\n", (int)result);
     return 0;
 }
 
