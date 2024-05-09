@@ -41,11 +41,9 @@ uint32_t choose(uint32_t n) {
     return rand() % n ;
 }
 
-void gen_space() {
-    // 仅在操作符后插入空格
-    const char *ops = " +-*/";
-    if (strchr(ops, buf[buf_index - 1]) && buf_index > 0) {
-        buf[buf_index++] = ' ';
+void gen_space(void) {
+    if (choose(2)) {
+    buf[buf_index++] = ' ';
     }
 }
 
@@ -57,7 +55,6 @@ void gen_num() {
 
     // 将数字转换为 字符串并追加到 buf
     char num_str[4]; // 3位数 + 1个结束符 '\0'
-    gen_space();
     
     snprintf(num_str, sizeof(num_str), "%u", num);
 
@@ -69,45 +66,104 @@ void gen(char c) {
     buf[buf_index++] = c;
 }
 
-void gen_rand_op(bool allowTrailingOperator) {
-    if (allowTrailingOperator && buf_index > 0 && buf[buf_index - 1] != ' ') {
-        char op[4] = {'+', '-', '*', '/'};
-        buf[buf_index++] = op[choose(4)];
-    }
+void gen_rand_op() {
+    char op[4] = {'+', '-', '*', '/'};
+    int op_index = choose(4); 
+    buf[buf_index++] = op[op_index];
 }
 
-void gen_rand_expr(bool allowTrailingOperator) {
-    // 溢出处理
-    if (buf_index > sizeof(buf) - 16) {
-        return;
-    }
+bool is_last_operator(void) {
+    char last_char = buf[buf_index - 1];
+    return strchr("+-*/ ", last_char) != NULL;
+}
 
-    bool hasExpr = false;
+// 前面是() 那就返回true
+bool is_last_leftparens(void) {
+    if (buf_index == 0) return false;
+    char last_char = buf[buf_index - 1];
+    return strchr(") ", last_char) != NULL;
+}
+bool is_last_rightparens(void) {
+    if (buf_index == 0) return false;
+    char last_char = buf[buf_index - 1];
+    return strchr("( ", last_char) != NULL;
+}
 
+// 是不是需要将左右括号分开？ 是的
+bool is_last_space(void) {
+    if (buf_index == 0) return false;
+    char last_char = buf[buf_index - 1];
+    return strchr(" ", last_char) != NULL;
+}
+
+// 检查最后一个字符是否是数字
+bool is_last_num(void) {
+    if (buf_index == 0) return false; // 如果缓冲区为空，则没有最后一个字符
+    char last_char = buf[buf_index - 1];
+    return isdigit((unsigned char)last_char) != 0; // 使用isdigit检查是否为数字
+}
+
+/*
+void gen_rand_expr() {
+  switch (choose(3)) {
+    case 0:
+        //if (buf_index > 0 && 
+         //   gen_rand_op();
+        //} else {
+        //}
+             //(is_last_leftparens() != true && is_last_rightparens() != true )) {
+        if (buf_index > 0 && is_last_operator() != true 
+            && is_last_leftparens() != true) {
+            gen_rand_op();
+        }  
+        gen_num();
+
+        break;
+    case 1:
+        gen('(');
+        gen_rand_expr();
+        gen(')');
+        break;
+    default:
+        gen_rand_expr();
+        if (is_last_leftparens() != true) {
+            gen_rand_op();
+        }
+        gen_rand_expr();
+        break;
+  }
+}
+*/
+static void gen_rand_expr() {
     switch (choose(3)) {
-        case 0: 
-            gen_num();
-            hasExpr = true;
+        case 0:
+            if( buf[strlen(buf) - 1]!=')')
+            {
+            gen_num(); // 生成随机数字
+            }
+            else
+            {
+              gen_rand_expr();
+            }
             break;
         case 1:
-            if (choose(2) == 0) { // 50% 的概率生成嵌套括号
-                gen('(');
-                gen_rand_expr(false); // 嵌套括号内不允许尾随运算符
-                gen(')');
-                hasExpr = true;
+              // 避免在操作数之后立即插入左括号，而是在操作符之后插入左括号
+            if (buf[0] != '\0' &&  strchr("+-*/", buf[strlen(buf) - 1]))
+            {
+                //strcat(buf, "("); // 将左括号添加到缓冲区末尾
+                gen_rand_expr(); // 递归生成随机表达式
+                //strcat(buf, ")"); // 将右括号添加到缓冲区末尾
+            }
+            else
+            {
+                gen_rand_expr(); // 递归生成随机表达式
             }
             break;
-        default: 
-            if (!hasExpr) {
-                gen_num();
-                hasExpr = true;
-            }
-            gen_rand_op(false); // 表达式间的运算符不允许尾随运算符
+        default:
+            gen_rand_expr(); // 递归生成随机表达式
+            gen_rand_op(); // 生成随机操作符
+            gen_rand_expr(); // 递归生成随机表达式
             break;
-    }
-
-    if (hasExpr && allowTrailingOperator) {
-        gen_rand_op(true); // 表达式后可以跟一个尾随运算符
     }
 }
 
@@ -120,7 +176,7 @@ int main(int argc, char *argv[]) {
   }
   int i;
   for (i = 0; i < loop; i ++) {
-    gen_rand_expr(false);
+    gen_rand_expr();
 
     sprintf(code_buf, code_format, buf);
 

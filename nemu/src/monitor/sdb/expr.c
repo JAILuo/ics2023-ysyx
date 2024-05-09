@@ -29,20 +29,20 @@
 
 enum {
   TK_NOTYPE = 256,
-  TK_EQ = 257,
 
-  TK_ADD = 258,
-  TK_SUB = 259,
-  TK_MUL = 260,
-  TK_DIV = 261,
+  TK_ADD = 0,
+  TK_SUB = 1,
+  TK_MUL = 2,
+  TK_DIV = 3,
 
-  TK_RIGHT_PAR = 262,
-  TK_LEFT_PAR = 263,
+  TK_RIGHT_PAR = 4,
+  TK_LEFT_PAR = 5,
 
-  TK_NUM = 264,
-  TK_WORD = 265,
+  TK_NUM = 6,
+  TK_WORD = 7,
 
-  TK_NEG = 266,
+  TK_EQ = 8,
+  TK_NEG = 9,
 
   /* TODO: Add more token types */
 };
@@ -81,6 +81,7 @@ static struct rule {
 
 static regex_t re[NR_REGEX] = {};
 
+int add_token(char *substr_start, int substr_len, int i);
 void string_2_num(int p, int q);
 
 /* Rules are used for many times.
@@ -101,11 +102,11 @@ void init_regex() {
 }
 typedef struct token {
   int type;
-  char str[32];
+  char str[128];
   int num_value;
 } Token;
 
-static Token tokens[32] __attribute__((used)) = {};
+static Token tokens[128] __attribute__((used)) = {};
 static int nr_token __attribute__((used)) = 0;
 
 static bool make_token(char *e) {
@@ -133,57 +134,7 @@ static bool make_token(char *e) {
          * of tokens, some extra actions should be performed.
          */
 
-        switch (rules[i].token_type) {
-        case TK_NOTYPE:
-          /* 直接跳过空格 */
-          break;
-
-        case TK_ADD:
-          // tokens[i] = {.type = TK_ADD};
-          tokens[nr_token++].type = TK_ADD;
-          break;
-
-        case TK_SUB: // sub and negative.
-          tokens[nr_token++].type = TK_SUB;
-
-          break;
-        case TK_MUL:
-          tokens[nr_token++].type = TK_MUL;
-          break;
-
-        case TK_DIV:
-          tokens[nr_token++].type = TK_DIV;
-          break;
-
-        case TK_NUM: // 比如说传进来一个数字 1234, 不能只判断1, 后面就没了。
-          tokens[nr_token].type = TK_NUM;
-          // 怎么判断一直到数字？直接在这个 token 的 substr_len 即可.
-          if (substr_len > sizeof(tokens[nr_token].str) - 1) {
-            substr_len = sizeof(tokens[nr_token].str) - 1;
-          }
-
-          strncpy(tokens[nr_token].str, substr_start, substr_len);
-          tokens[nr_token].str[substr_len] = '\0';
-          // tokens[token_index].num_value = atoi(substr_start);
-          nr_token++;
-          break;
-
-        case TK_WORD:
-          tokens[nr_token++].type = TK_WORD;
-          break;
-
-        case TK_RIGHT_PAR:
-          tokens[nr_token++].type = TK_RIGHT_PAR;
-          break;
-
-        case TK_LEFT_PAR:
-          tokens[nr_token++].type = TK_LEFT_PAR;
-          break;
-
-        default:
-          printf("No rules were mathced with %s\n", substr_start);
-        }
-
+        i = add_token(substr_start, substr_len, i);
         break;
       }
     }
@@ -197,13 +148,60 @@ static bool make_token(char *e) {
   return true;
 }
 
+int add_token(char *substr_start, int substr_len, int i) {
+    switch (rules[i].token_type) {
+        case TK_NOTYPE:
+            break;
+
+        case TK_ADD:
+            tokens[nr_token++].type = TK_ADD;
+            break;
+
+        case TK_SUB: // sub and negative.
+            tokens[nr_token++].type = TK_SUB;
+            break;
+
+        case TK_MUL:
+            tokens[nr_token++].type = TK_MUL;
+            break;
+
+        case TK_DIV:
+            tokens[nr_token++].type = TK_DIV;
+            break;
+
+        case TK_NUM: // 比如说传进来一个数字 1234, 不能只判断1, 后面就没了。
+            tokens[nr_token].type = TK_NUM;
+            // 怎么判断一直到数字？直接在这个 token 的 substr_len 即可.
+            if (substr_len > sizeof(tokens[nr_token].str) - 1) {
+                substr_len = sizeof(tokens[nr_token].str) - 1;
+            }
+
+            strncpy(tokens[nr_token].str, substr_start, substr_len);
+            tokens[nr_token].str[substr_len] = '\0';
+            nr_token++;
+            break;
+
+        case TK_WORD:
+            tokens[nr_token++].type = TK_WORD;
+            break;
+
+        case TK_RIGHT_PAR:
+            tokens[nr_token++].type = TK_RIGHT_PAR;
+            break;
+
+        case TK_LEFT_PAR:
+            tokens[nr_token++].type = TK_LEFT_PAR;
+            break;
+
+        default:
+            printf("No rules were mathced with %s\n", substr_start);
+            break;
+    }
+    return i; 
+}
+
 /**
  * version1.2
- * (70)-(52) 不行
- *
- * 既然已经过了第一部分的检查,
- *       那我直接从 p + 1 开始判断到 q -1
- *       这样子不就直接跳过了吗?
  */
 bool check_parentheses(int p, int q) {
     if (tokens[p].type != TK_LEFT_PAR || tokens[q].type != TK_RIGHT_PAR) {
@@ -278,7 +276,10 @@ int find_main_operator(int p, int q, int *min_priority) {
             // 只有在不在括号内时，才检查运算符
             if (in_parens == 0) {
                 int priority = get_priority(tokens[i].type);
-                if (priority < *min_priority) {
+                if (priority <= *min_priority) { 
+                    // 注意这里是 <= 
+                    // 因为运算是从左到右
+                    // 但是主运算符是优先级最低的。
                     *min_priority = priority;
                     op = i;
                 }
@@ -296,29 +297,48 @@ int find_main_operator(int p, int q, int *min_priority) {
     return op;
 }
 
-word_t compute(int op_type, int val1, int val2) {
-  // op = the position of 主运算符 in the token expression;
-  // 下面是最底层括号内的运算：
-  switch (op_type) {
-  case TK_ADD:
-    return val1 + val2;
-    break;
-  case TK_SUB: /* ... */
-    return val1 - val2;
-    break;
-  case TK_MUL: /* ... */
-    return val1 * val2;
-    break;
-  case TK_DIV:
-    if (val2 == 0) {
-      printf("error:division not 0.\n");
-      return -1;
+static inline int op_add(int a, int b) {
+    return a + b;
+}
+
+static inline int op_sub(int a, int b) {
+    return a - b;
+}
+
+static inline int op_mul(int a, int b) {
+    return a * b;
+}
+
+static int op_div(int a, int b) {
+    if (b == 0) {
+        fprintf(stderr, "Error: Division by zero.\n");
+        exit(EXIT_FAILURE);
     }
-    return val1 / val2;
-    break;
-  default:
-    assert(0);
-  }
+    return a / b;
+}
+
+typedef int (*BinaryOperation)(int, int);
+/**
+ * 下面这个函数顺序和token类型顺序一致?
+ */
+BinaryOperation operations[] = {
+    op_add, 
+    op_sub,
+    op_mul,
+    op_div,
+};
+
+int compute(int op_type, int val1, int val2) {
+    if (op_type < TK_ADD || op_type > TK_DIV) {
+        fprintf(stderr, "Invalid operation type: %d\n", op_type);
+        exit(EXIT_FAILURE);
+    }
+    BinaryOperation op = operations[op_type];
+    if (op == NULL) {
+        fprintf(stderr, "Operation not supported: %d\n", op_type);
+        exit(EXIT_FAILURE);
+    }
+    return op(val1, val2);
 }
 
 /*
@@ -347,7 +367,6 @@ int eval(int p, int q) {
      */
     return eval(p + 1, q - 1);
   } else {
-    // int flag = 0;
     int op = -1;
     int min_priority = INT_MAX;
 
@@ -356,12 +375,10 @@ int eval(int p, int q) {
       printf("No operator found.\n");
       return INT_MAX;
     }
-
     op_type = tokens[op].type;
 
-    word_t val1, val2;
-    val1 = eval(p, op - 1);
-    val2 = eval(op + 1, q);
+    int val1 = eval(p, op - 1);
+    int val2 = eval(op + 1, q);
     return compute(op_type, val1, val2);
   }
 }
@@ -383,6 +400,8 @@ void is_neg(void) {
 /**
  * 从start往后的内容，都往前移动count个单位
  * 为新元素腾出空间，保持数组内容的连续性
+ *
+ * 需要做成宏吗？这个函数我还是挺常用的？
  */
 void shift_left(int start, int count) {
   for (int j = start; j < nr_token; ++j) {
@@ -405,14 +424,22 @@ int handle_neg(int i) {
     if (tokens[0].type == TK_NEG // 开头负号：-1+2
                && (tokens[i + 1].type == TK_NUM))
     {
-        tokens[i + 1].num_value = -atoi(tokens[i + 1].str);
+        int num_value = 0;
+        if (sscanf(tokens[i + 1].str, "%d", &num_value) != 1) {
+            fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 1].str);
+            exit(EXIT_FAILURE);
+        }
+        tokens[i + 1].num_value = -num_value;
         shift_left(i + 1 , 1);
         i++;
-        // 但是我这么处理好像处理不了--1?
-        // 再加一个if?
     }else if (tokens[0].type == TK_NEG 
-              && tokens[1].type == TK_NEG) {
-        tokens[i + 2].num_value = -atoi(tokens[i + 2].str);
+              && tokens[1].type == TK_NEG) { // 2+ (-1)
+        int num_value = 0;
+        if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
+            fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
+            exit(EXIT_FAILURE);
+        }
+        tokens[i + 2].num_value = -num_value;
         tokens[i] = tokens[i + 2];
         memset(&tokens[1], 0, sizeof(tokens[1]));
         memset(&tokens[2], 0, sizeof(tokens[2])); 
@@ -420,44 +447,66 @@ int handle_neg(int i) {
         i += 2;
     } else if (tokens[i + 1].type == TK_NEG
                && tokens[i + 2].type == TK_NUM) {
+        int num_value = 0;
         switch (tokens[i].type) { 
             case TK_LEFT_PAR: //这里的逻辑怎么实现？
-                tokens[i + 2].num_value = -atoi(tokens[i + 2].str);
+                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
+                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
+                    exit(EXIT_FAILURE);
+                }
+                tokens[i + 2].num_value = -num_value;
                 shift_left(i + 2, 1);
                 i++;
                 break;
             case TK_RIGHT_PAR: //这里的逻辑怎么实现？
                 tokens[i + 1].type = TK_ADD;
-                tokens[i + 2].num_value = -atoi(tokens[i + 2].str);
+                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
+                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
+                    exit(EXIT_FAILURE);
+                }
+                tokens[i + 2].num_value = -num_value;
                 i+=2;
                 break;
 
             case TK_ADD:
-                tokens[i + 2].num_value = -atoi(tokens[i + 2].str);
+                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
+                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
+                    exit(EXIT_FAILURE);
+                }
+                tokens[i + 2].num_value = -num_value;
                 shift_left(i + 2, 1);
                 i++;
                 break;
             
             case TK_SUB:
                 tokens[i].type = TK_ADD;
-
-                tokens[i + 2].num_value = atoi(tokens[i + 2].str);
+                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
+                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
+                    exit(EXIT_FAILURE);
+                }
+                tokens[i + 2].num_value = num_value; 
                 shift_left(i + 2, 1);
                 i += 2;
                 break;
 
             case TK_MUL:
                 tokens[i].type = TK_MUL;
-
-                tokens[i + 2].num_value = -atoi(tokens[i + 2].str);
+                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
+                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
+                    exit(EXIT_FAILURE);
+                }
+                tokens[i + 2].num_value = -num_value;
                 shift_left(i + 2, 1);
                 i++;
                 break;
         
             case TK_DIV:
                 tokens[i].type = TK_DIV;
-
-                tokens[i + 2].num_value = -atoi(tokens[i + 2].str);
+                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
+                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
+                    exit(EXIT_FAILURE);
+                }
+                tokens[i + 2].num_value = -num_value;
                 shift_left(i + 2, 1);
                 i++;
                 break;
@@ -472,11 +521,14 @@ int handle_neg(int i) {
 void string_2_num(int p, int q) {
     // 使用atoi? 还是strtoul? 转换字符串为数字
     for (int i = p; i < q; ++i) {
-        // 正常正数
+        // 正数
         if (tokens[i].type == TK_NUM) {
-            tokens[i].num_value = atoi(tokens[i].str);
+            if (sscanf(tokens[i].str, "%d", &tokens[i].num_value) != 1) {
+                fprintf(stderr, "Error converting string to number: %s\n", tokens[i].str);
+                exit(EXIT_FAILURE);
+            }
         }
-        // 负数处理
+        // 负数
         i = handle_neg(i);
     }
 }
@@ -499,7 +551,6 @@ int expr(char *e, bool *success) {
   // 赋值范围问题，隐式转换，等会解决
   // 上面的避免使用atoi，也是一个好习惯，因为会整数溢出
 
-  // 默认结果都是uint32_t,负数先不管
   if (result == INT_MAX) {
     *success = false;
     return 0;
