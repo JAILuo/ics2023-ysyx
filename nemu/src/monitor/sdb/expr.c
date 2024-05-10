@@ -34,15 +34,20 @@ enum {
   TK_SUB = 1,
   TK_MUL = 2,
   TK_DIV = 3,
+  TK_EQ = 4,
+  TK_NEQ = 5,
+  TK_LOGICAL_AND = 6,
 
-  TK_RIGHT_PAR = 4,
-  TK_LEFT_PAR = 5,
+  TK_RIGHT_PAR = 7,
+  TK_LEFT_PAR = 8,
 
-  TK_NUM = 6,
-  TK_WORD = 7,
-
-  TK_EQ = 8,
   TK_NEG = 9,
+
+  TK_NUM = 10,
+  TK_HEX = 11,
+  TK_REG_NAME = 12,
+
+  TK_DEREF = 13,
 
   /* TODO: Add more token types */
 };
@@ -56,16 +61,32 @@ static struct rule {
      * Pay attention to the precedence level of different rules.
      */
 
+    {" +", TK_NOTYPE}, // spaces
+
     {"\\(", TK_LEFT_PAR},
     {"\\)", TK_RIGHT_PAR},
 
+    /**
+     * 这里的规则优先级是不是也是需要注意下的? 
+     * 如果TK_NUM在前面，会导致0x被截断？
+     */
+    /* hexadecimal number */
+    {"0[xX][0-9a-fA-F]+", TK_HEX},
     // numbers (确保是+号，表示一个或多个数字)
     {"[0-9]+", TK_NUM},
-    // words (确保在数字之后，这样数字不会被当作单词匹配)
-    {"[A-Za-z_][A-Za-z0-9_]*", TK_WORD},
+    // register name (确保在数字之后，这样数字不会被当作单词匹配)
+    {"\\$[A-Za-z_][A-Za-z0-9_]*", TK_REG_NAME},
 
-    {" +", TK_NOTYPE}, // spaces
-    {"==", TK_EQ},     // equal
+    /* comparison operators */
+    {"!=", TK_NEQ},
+    {"==", TK_EQ},
+
+    /* logical operator */
+    {"&&", TK_LOGICAL_AND},
+
+    /* dereference operator */
+    // 有点问题，怎么区分乘号和解引用？
+    //{"\\*", TK_DEREF},
 
     {"\\+", TK_ADD}, // plus
     {"-", TK_SUB},
@@ -181,10 +202,6 @@ int add_token(char *substr_start, int substr_len, int i) {
             nr_token++;
             break;
 
-        case TK_WORD:
-            tokens[nr_token++].type = TK_WORD;
-            break;
-
         case TK_RIGHT_PAR:
             tokens[nr_token++].type = TK_RIGHT_PAR;
             break;
@@ -192,6 +209,42 @@ int add_token(char *substr_start, int substr_len, int i) {
         case TK_LEFT_PAR:
             tokens[nr_token++].type = TK_LEFT_PAR;
             break;
+
+        case TK_HEX:
+            tokens[nr_token].type = TK_HEX;
+            char *hex_start = substr_start + 2;
+            int hex_len = substr_len - 2;
+            if (hex_len > sizeof(tokens[nr_token].str) - 1) {
+                hex_len = sizeof(tokens[nr_token].str) - 1;
+            }
+            strncpy(tokens[nr_token].str, hex_start, hex_len);
+            tokens[nr_token].str[hex_len] = '\0';
+            nr_token++;
+            break;
+
+        case TK_REG_NAME:
+            tokens[nr_token].type = TK_REG_NAME;
+            // 复制寄存器名称
+            strncpy(tokens[nr_token].str, substr_start, substr_len);
+            tokens[nr_token].str[substr_len] = '\0';
+            nr_token++;
+            break;
+
+        case TK_EQ:
+            tokens[nr_token++].type = TK_EQ;
+            break;
+
+        case TK_NEQ:
+            tokens[nr_token++].type = TK_NEQ;
+            break;
+
+        case TK_LOGICAL_AND:
+            tokens[nr_token++].type = TK_LOGICAL_AND;
+            break;
+
+            // 有点问题，待会再区分
+       // case TK_DEREF:
+       //     break;
 
         default:
             printf("No rules were mathced with %s\n", substr_start);
@@ -230,17 +283,25 @@ bool check_parentheses(int p, int q) {
     Stack_destroy(stack);
     return true;
 }
-
+/**
+ * C语言运算符优先级
+ *
+ * 乘除 > 加减 > 左/右移 > (不)等于 > 逻辑
+ */
 int get_priority(int op_type) {
-  switch (op_type) {
-  case TK_ADD:
-  case TK_SUB:
-    return 1;
-  case TK_MUL:
-  case TK_DIV:
-    return 2;
-  default:
-    return 0; // Default priority for non-operators
+    switch (op_type) {
+        case TK_ADD:
+        case TK_SUB:
+            return 1;
+        case TK_MUL:
+        case TK_DIV:
+            return 2;
+        case TK_EQ:
+        case TK_NEQ:
+            return 3;
+        case TK_LOGICAL_AND:
+            return 4;
+        default:return 0; // Default priority for non-operators
   }
 }
 
@@ -272,7 +333,7 @@ int find_main_operator(int p, int q, int *min_priority) {
             }
         } else if (tokens[i].type == TK_NOTYPE) {
             continue;
-        } else if (tokens[i].type >= TK_ADD && tokens[i].type <= TK_DIV) {
+        } else if (tokens[i].type >= TK_ADD && tokens[i].type <= TK_LOGICAL_AND) {
             // 只有在不在括号内时，才检查运算符
             if (in_parens == 0) {
                 int priority = get_priority(tokens[i].type);
@@ -317,6 +378,19 @@ static int op_div(int a, int b) {
     return a / b;
 }
 
+static inline int op_eq(int a, int b) {
+    return a == b;
+}
+
+static inline int op_neq(int a, int b) {
+    return a != b;
+}
+
+static inline int op_logical_and(int a, int b) {
+    return a && b;
+}
+
+
 typedef int (*BinaryOperation)(int, int);
 /**
  * 下面这个函数顺序和token类型顺序一致?
@@ -326,13 +400,18 @@ BinaryOperation operations[] = {
     op_sub,
     op_mul,
     op_div,
+    op_eq,
+    op_neq,
+    op_logical_and,
+    // 指针解引用不涉及数值计算
 };
 
 int compute(int op_type, int val1, int val2) {
-    if (op_type < TK_ADD || op_type > TK_DIV) {
+    if (op_type < TK_ADD || op_type > TK_LOGICAL_AND) {
         fprintf(stderr, "Invalid operation type: %d\n", op_type);
         exit(EXIT_FAILURE);
     }
+
     BinaryOperation op = operations[op_type];
     if (op == NULL) {
         fprintf(stderr, "Operation not supported: %d\n", op_type);
@@ -346,41 +425,48 @@ int compute(int op_type, int val1, int val2) {
  * 使用两个整数 p 和 q 来指示这个子表达式的开始位置和结束位置.
  */
 int eval(int p, int q) {
-  int op_type;
-  if (p > q) {
-    /* Bad expression */
-    printf("error_eval, index error.\n");
-    return INT_MAX;
-  } else if (p == q) {
-    /* Single token.
-     * For now this token should be a number.
-     * Return the value of the number.
-     */
-    if (tokens[p].type != TK_NUM) {
-      printf("error_eval, expect number but got %d\n", tokens[p].type);
-      return INT_MAX;
-    }
-    return tokens[p].num_value;
-  } else if (check_parentheses(p, q) == true) {
-    /* The expression is surrounded by a matched pair of parentheses.
-     * If that is the case, just throw away the parentheses.
-     */
-    return eval(p + 1, q - 1);
-  } else {
-    int op = -1;
-    int min_priority = INT_MAX;
+    int op_type;
+    if (p > q) {
+        /* Bad expression */
+        printf("error_eval, index error.\n");
+        return INT_MAX;
+    } else if (p == q) {
+        /* Single token.
+         * For now this token should be a number.
+         * Return the value of the number.
+         */
+        switch (tokens[p].type) {
+            case TK_NUM:
+                return tokens[p].num_value;
+                break;
+            case TK_HEX:
+                return tokens[p].num_value;
+                break;
+            default:
+                printf("error_eval, expect number but got %d\n", tokens[p].type);
+                return INT_MAX;
+                break;
+        }
+    } else if (check_parentheses(p, q) == true) {
+        /* The expression is surrounded by a matched pair of parentheses.
+         * If that is the case, just throw away the parentheses.
+         */
+        return eval(p + 1, q - 1);
+    } else {
+        int op = -1;
+        int min_priority = INT_MAX;
 
-    op = find_main_operator(p, q, &min_priority);
-    if (op == -1) {
-      printf("No operator found.\n");
-      return INT_MAX;
-    }
-    op_type = tokens[op].type;
+        op = find_main_operator(p, q, &min_priority);
+        if (op == -1) {
+            printf("No operator found.\n");
+            return INT_MAX;
+        }
+        op_type = tokens[op].type;
 
-    int val1 = eval(p, op - 1);
-    int val2 = eval(op + 1, q);
-    return compute(op_type, val1, val2);
-  }
+        int val1 = eval(p, op - 1);
+        int val2 = eval(op + 1, q);
+        return compute(op_type, val1, val2);
+    }
 }
 
 /**
@@ -435,6 +521,7 @@ int handle_neg(int i) {
     }else if (tokens[0].type == TK_NEG 
               && tokens[1].type == TK_NEG) { // 2+ (-1)
         int num_value = 0;
+        // 我这么处理应该也是有很大问题的，要是出现连续的负号
         if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
             fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
             exit(EXIT_FAILURE);
@@ -518,17 +605,22 @@ int handle_neg(int i) {
 /**
  * 将字符串表达式中的数字转换为数值，
  */
-void string_2_num(int p, int q) {
+void str2num(int p, int q) {
     // 使用atoi? 还是strtoul? 转换字符串为数字
     for (int i = p; i < q; ++i) {
-        // 正数
+        // 十进制正数
         if (tokens[i].type == TK_NUM) {
             if (sscanf(tokens[i].str, "%d", &tokens[i].num_value) != 1) {
                 fprintf(stderr, "Error converting string to number: %s\n", tokens[i].str);
                 exit(EXIT_FAILURE);
             }
+        } else if (tokens[i].type == TK_HEX) {
+            if (sscanf(tokens[i].str, "%x", &tokens[i].num_value) != 1) {
+                fprintf(stderr, "Error converting hexadecimal string to number: %s\n", tokens[nr_token].str);
+                exit(EXIT_FAILURE);
+            }
         }
-        // 负数
+        // 十进制负数
         i = handle_neg(i);
     }
 }
@@ -536,7 +628,7 @@ void string_2_num(int p, int q) {
 void tokens_pre_processing(void) {
     is_neg();
 
-    string_2_num(0, nr_token);
+    str2num(0, nr_token);
 }
 
 int expr(char *e, bool *success) {

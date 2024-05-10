@@ -236,8 +236,9 @@ static int cmd_p(char *args) {
         printf("error eval.\n");
         return 0;
     }
-    printf("hex: %"PRIu32"\n", result);
-    printf("dec: %d\n", (int)result);
+    printf("uint32_t dec: %"PRIu32"\n", result);
+    printf("int dec: %d\n", (int)result);
+    printf("hex: 0x%x\n", (int)result);
     return 0;
 }
 
