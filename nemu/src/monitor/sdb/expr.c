@@ -54,6 +54,8 @@ enum {
   TK_REG_NAME = 12,
 
   TK_DEREF = 13,
+
+  // 更多运算符：<= >=
   /* TODO: Add more token types */
 };
 
@@ -93,21 +95,18 @@ static struct rule {
     /* logical operator */
     {"&&", TK_LOGICAL_AND},
 
-    {"\\+", TK_ADD},    // plus
+    {"\\+", TK_ADD},    
     {"-", TK_SUB},      // sub and neg
     {"\\*", TK_MUL},    // mul and deref. 
     {"/", TK_DIV},
 
-    //      好像我下面这么写不行？
-    //    {"\\d", TK_NUM},
-    //    {"\\w", TK_WORD},
 };
 
 #define NR_REGEX ARRLEN(rules)
 
 static regex_t re[NR_REGEX] = {};
 
-int add_token(char *substr_start, int substr_len, int i);
+static int add_token(char *substr_start, int substr_len, int i);
 void string_2_num(int p, int q);
 
 /* Rules are used for many times.
@@ -174,8 +173,6 @@ static bool make_token(char *e) {
   return true;
 }
 
-// TODO: optimize too many switch case.
-//       function pointer.
 int add_token(char *substr_start, int substr_len, int i) {
     switch (rules[i].token_type) {
         case TK_NOTYPE:

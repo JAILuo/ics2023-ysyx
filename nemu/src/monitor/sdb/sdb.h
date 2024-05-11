@@ -20,4 +20,9 @@
 
 word_t expr(char *e, bool *success);
 
+void watch_wp(char *expr, int result);
+void delete_wp(int no);
+void difftest_wp(void);
+void display_wp(void);
+
 #endif

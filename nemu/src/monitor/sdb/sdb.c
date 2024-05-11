@@ -25,7 +25,6 @@
 
 #include <isa.h>
 #include <debug.h>
-/* 直接写出这个头文件名字即可，不需要写道include/debug.h 这种 */
 #include <cpu/cpu.h>
 #include "sdb.h"
 #include "utils.h"
@@ -73,7 +72,7 @@ static int cmd_q(char *args) {
 
 static int cmd_si(char *args) {
     int step = 1;
-    if (args != NULL) {
+    if (args) {
         sscanf(args, "%d", &step);
     }
     cpu_exec((uint64_t)step);
@@ -81,18 +80,17 @@ static int cmd_si(char *args) {
 }
 
 static int cmd_info(char *args) {
-    // info 后面要跟参数
     if (args == NULL) {
-        printf("Please pass argument.\n");
+        printf("Usage: info SUBCMD (info r / info w)\n");
         return 0;
     }
 
     if (args[0] == 'r') {
         isa_reg_display();
     } else if (args[0] == 'w') {
-        
+        display_wp();
     } else {
-        printf("Please pass correct argument.\n");
+        printf("Please use info r or info w\n");
     }
     return 0;
 }
@@ -172,8 +170,8 @@ static int cmd_x(char *args) {
 
    // char *num = strtok_r(args, " ", NULL);
     
-    if (args == NULL) {
-        printf("Please pass argument.\n");
+    if (!args) {
+        printf("Usage: x N EXPR\n");
         return 0;
     }
 
@@ -182,12 +180,6 @@ static int cmd_x(char *args) {
 
     char *str = strdup(args);
     Assert(str != NULL, "memory allocate error."); 
-    /*
-    if (str == NULL) {
-        printf("memory allocate error\n");
-        return 0;
-    }
-    */
 
     char *token = strtok(str, " ");
     char *next = strtok(NULL, " ");
@@ -226,8 +218,8 @@ static int cmd_x(char *args) {
 #endif
 
 static int cmd_p(char *args) {
-    if (args == NULL) {
-        printf("Please pass arguments.\n");
+    if (!args) {
+        printf("Usage: p expr\n");
         return 0;
     }
     bool success = true;
@@ -243,12 +235,28 @@ static int cmd_p(char *args) {
 }
 
 static int cmd_w(char *args) {
+    if (!args) {
+        printf("Usage: w expr\n");
+        return 0;
+    }
+    bool success = true;
+    int result = expr(args, &success);
+    if (success == false) {
+        printf("error eval.\n");
+        return 0;
+    }
+    watch_wp(args, result);
 
     return 0;
 }
 
 static int cmd_d(char *args) {
-
+    char *wp_num = strtok(args, " ");
+    if (!wp_num) {
+        printf("Usage: d N\n");
+    }
+    int no = strtol(wp_num, NULL, 10);
+    delete_wp(no);
     return 0;
 }
 
