@@ -13,6 +13,7 @@
  * See the Mulan PSL v2 for more details.
  ***************************************************************************************/
 
+#include <inttypes.h>
 #include <isa.h>
 
 /* We use the POSIX regex functions to process regular expressions.
@@ -22,9 +23,13 @@
 #include <limits.h>
 #include <regex.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "common.h"
+#include "macro.h"
+#include "memory/vaddr.h"
 #include "stack.h"
 
 enum {
@@ -43,12 +48,12 @@ enum {
 
   TK_NEG = 9,
 
+  /* TODO: merge thr TK_NUM and TK_HEX*/
   TK_NUM = 10,
   TK_HEX = 11,
   TK_REG_NAME = 12,
 
   TK_DEREF = 13,
-
   /* TODO: Add more token types */
 };
 
@@ -61,6 +66,8 @@ static struct rule {
      * Pay attention to the precedence level of different rules.
      */
 
+    // 如何安排这些规则的顺序，是个问题
+    // 运算符的顺序和和这个规则顺序应该不太一样。
     {" +", TK_NOTYPE}, // spaces
 
     {"\\(", TK_LEFT_PAR},
@@ -69,13 +76,15 @@ static struct rule {
     /**
      * 这里的规则优先级是不是也是需要注意下的? 
      * 如果TK_NUM在前面，会导致0x被截断？
+     * 那这样不会也导致NUM的优先级地域HEX？
+     * 要不统一使用NUM，之后再区分是HEX还是DEC？
      */
     /* hexadecimal number */
     {"0[xX][0-9a-fA-F]+", TK_HEX},
     // numbers (确保是+号，表示一个或多个数字)
     {"[0-9]+", TK_NUM},
     // register name (确保在数字之后，这样数字不会被当作单词匹配)
-    {"\\$[A-Za-z_][A-Za-z0-9_]*", TK_REG_NAME},
+    {"\\$\\w+|\\w+", TK_REG_NAME}, // 有不是$开头的
 
     /* comparison operators */
     {"!=", TK_NEQ},
@@ -84,13 +93,9 @@ static struct rule {
     /* logical operator */
     {"&&", TK_LOGICAL_AND},
 
-    /* dereference operator */
-    // 有点问题，怎么区分乘号和解引用？
-    //{"\\*", TK_DEREF},
-
-    {"\\+", TK_ADD}, // plus
-    {"-", TK_SUB},
-    {"\\*", TK_MUL},
+    {"\\+", TK_ADD},    // plus
+    {"-", TK_SUB},      // sub and neg
+    {"\\*", TK_MUL},    // mul and deref. 
     {"/", TK_DIV},
 
     //      好像我下面这么写不行？
@@ -124,7 +129,7 @@ void init_regex() {
 typedef struct token {
   int type;
   char str[128];
-  int num_value;
+  word_t num_value;
 } Token;
 
 static Token tokens[128] __attribute__((used)) = {};
@@ -169,6 +174,8 @@ static bool make_token(char *e) {
   return true;
 }
 
+// TODO: optimize too many switch case.
+//       function pointer.
 int add_token(char *substr_start, int substr_len, int i) {
     switch (rules[i].token_type) {
         case TK_NOTYPE:
@@ -182,7 +189,7 @@ int add_token(char *substr_start, int substr_len, int i) {
             tokens[nr_token++].type = TK_SUB;
             break;
 
-        case TK_MUL:
+        case TK_MUL: // mul and
             tokens[nr_token++].type = TK_MUL;
             break;
 
@@ -241,10 +248,6 @@ int add_token(char *substr_start, int substr_len, int i) {
         case TK_LOGICAL_AND:
             tokens[nr_token++].type = TK_LOGICAL_AND;
             break;
-
-            // 有点问题，待会再区分
-       // case TK_DEREF:
-       //     break;
 
         default:
             printf("No rules were mathced with %s\n", substr_start);
@@ -420,6 +423,27 @@ int compute(int op_type, int val1, int val2) {
     return op(val1, val2);
 }
 
+/* Single token.
+ * For now this token should be a number.
+ * Return the value of the number.
+ */
+int eval_operand(int p, bool *success) {
+    switch (tokens[p].type) {
+        case TK_NUM:
+            return tokens[p].num_value;
+            break;
+        case TK_HEX:
+            return tokens[p].num_value;
+            break;
+        case TK_REG_NAME:
+            return isa_reg_str2val(tokens[p].str, success);
+        default:
+            printf("error_eval, expect number but got %d\n", tokens[p].type);
+            return INT_MAX;
+            break;
+    }
+}
+
 /*
  * 在token表达式(tokens)中指示一个子表达式,
  * 使用两个整数 p 和 q 来指示这个子表达式的开始位置和结束位置.
@@ -431,25 +455,11 @@ int eval(int p, int q) {
         printf("error_eval, index error.\n");
         return INT_MAX;
     } else if (p == q) {
-        /* Single token.
-         * For now this token should be a number.
-         * Return the value of the number.
-         */
-        switch (tokens[p].type) {
-            case TK_NUM:
-                return tokens[p].num_value;
-                break;
-            case TK_HEX:
-                return tokens[p].num_value;
-                break;
-            default:
-                printf("error_eval, expect number but got %d\n", tokens[p].type);
-                return INT_MAX;
-                break;
-        }
+        bool success = true;
+        return eval_operand(p, &success);
     } else if (check_parentheses(p, q) == true) {
         /* The expression is surrounded by a matched pair of parentheses.
-         * If that is the case, just throw away the parentheses.
+         * If that is the case, just throw away the parentheses. nice!
          */
         return eval(p + 1, q - 1);
     } else {
@@ -505,6 +515,9 @@ void shift_left(int start, int count) {
  * @note 处理连续的负号和开头的负号
  * @note i + 2 出现这么多次?
  * @note eg. 2--1 :第一个减号为i
+ *
+ * TODO: 要改，我这样有点相当于穷举了，没有考虑到他单目运算符的特点了
+ *       不过没关系，先把功能实现了。
  */
 int handle_neg(int i) {
     if (tokens[0].type == TK_NEG // 开头负号：-1+2
@@ -606,7 +619,6 @@ int handle_neg(int i) {
  * 将字符串表达式中的数字转换为数值，
  */
 void str2num(int p, int q) {
-    // 使用atoi? 还是strtoul? 转换字符串为数字
     for (int i = p; i < q; ++i) {
         // 十进制正数
         if (tokens[i].type == TK_NUM) {
@@ -625,10 +637,37 @@ void str2num(int p, int q) {
     }
 }
 
+void is_deref() {
+    // mul or deref
+    // TODO: 不一定是NUM？REG也可以？还有HEX？
+    for (int i = 0; i < nr_token; i ++) {
+        if (tokens[i].type == TK_MUL
+            && (i == 0 || tokens[i - 1].type != TK_NUM) ) {
+            tokens[i].type = TK_DEREF;
+        }
+    }
+}
+
+void handle_pointer(int p, int q) {
+    for (int i = p; i < q; i++) {
+        if (tokens[i].type == TK_DEREF) {
+            // 将其直接替换为替换一个内存的值
+            // *0x80000000 ---> 663 / 02 73;
+            word_t addr = tokens[i + 1].num_value; 
+            tokens[i + 1].num_value = vaddr_read((vaddr_t)addr, 4);
+            shift_left(i + 1, 1);
+        }
+    }
+}
+
 void tokens_pre_processing(void) {
     is_neg();
 
+    is_deref();
+    
     str2num(0, nr_token);
+ 
+    handle_pointer(0, nr_token);
 }
 
 int expr(char *e, bool *success) {
@@ -636,12 +675,12 @@ int expr(char *e, bool *success) {
     *success = false;
     return 0;
   }
+
   tokens_pre_processing();
 
   /* TODO: Insert codes to evaluate the expression. */
   int result = eval(0, nr_token - 1);
-  // 赋值范围问题，隐式转换，等会解决
-  // 上面的避免使用atoi，也是一个好习惯，因为会整数溢出
+  // 赋值范围问题，隐式转换，解决?
 
   if (result == INT_MAX) {
     *success = false;

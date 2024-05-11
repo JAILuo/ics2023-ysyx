@@ -37,7 +37,6 @@ void isa_reg_display() {
 
 word_t isa_reg_str2val(const char *s, bool *success) {
     // pc and r0-r31
-    
     if (strcmp(s, "pc") == 0 ) {
         *success = true;
         return cpu.pc;
@@ -47,12 +46,10 @@ word_t isa_reg_str2val(const char *s, bool *success) {
         if (strcmp(s, regs[i]) == 0) {
             *success = true;
             return gpr(i);
-        } else {
-            printf("No this reg.\n");
-            *success = false;
-        }
+        } 
     }
 
+    printf("No this reg: %s\n",s);
     *success = false;
     return 0;
 }
