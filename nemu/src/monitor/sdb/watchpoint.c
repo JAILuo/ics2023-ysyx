@@ -16,6 +16,7 @@
 #include "common.h"
 #include "debug.h"
 #include "sdb.h"
+#include "utils.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +27,7 @@
 typedef struct watchpoint {
   int NO;
   struct watchpoint *next;
-  char expr[128];
+  char expr[32];
   int old_result;
   /* TODO: Add more members if necessary */
 
@@ -34,6 +35,7 @@ typedef struct watchpoint {
 
 static WP wp_pool[NR_WP] = {};
 static WP *head = NULL, *free_ = NULL;
+static int next_no = 0;
 
 void init_wp_pool() {
   int i;
@@ -47,21 +49,49 @@ void init_wp_pool() {
 }
 
 /* TODO: Implement the functionality of watchpoint */
-/* Why not queue? */
 /* Prepend or Append? */
 static WP* new_wp() {
     Assert(free_, "No idle watchpoint.");
 
     WP *new_wp = free_;
     free_ = free_->next;
-
-    // 将新分配的监视点添加到正在使用的链表的头部
+    
+    new_wp->NO = next_no++;
+    // Prepend
     new_wp->next = head;
     head = new_wp;
 
     return new_wp;
 }
 
+// 删除监视点时，需要找到其前驱节点
+static WP *find_prev_wp(int no) {
+  WP *cur = head;
+  WP *prev = NULL;
+  while (cur != NULL && cur->NO != no) {
+    prev = cur;
+    cur = cur->next;
+  }
+  return prev;
+}
+static void free_wp(WP *wp) {
+    if (!wp) return;
+
+    WP *prev = find_prev_wp(wp->NO);
+    if (prev == NULL) {
+        // wp是头节点
+        head = wp->next;
+    } else {
+        // 更新前驱节点的next指针以移除wp
+        prev->next = wp->next;
+    }
+    
+    // 将wp添加到空闲监视点链表的头部
+    wp->next = free_;
+    free_ = wp;
+
+}
+/*
 static void free_wp(WP *wp) {
     WP* tmp = head;
     if (tmp == wp) {
@@ -75,16 +105,15 @@ static void free_wp(WP *wp) {
     }
     wp->next = free_;
     free_ = wp;
-}
 
+}
+*/
+
+// 这里strlen和sizeof的区别
 void watch_wp(char *expr, int result) {
     WP *wp = new_wp();
-    word_t len = strlen(expr);
-    if (len >= sizeof(wp->expr)) {
-        len= sizeof(wp->expr) - 1;
-    }
-    strncpy(wp->expr, expr, sizeof(strlen(expr)));
-    wp->expr[len] = '\0';
+    strncpy(wp->expr, expr, sizeof(wp->expr) - 1);
+    wp->expr[sizeof(wp->expr) - 1] = '\0';
 
     wp->old_result = result;
     printf("watchpoint %d: %s\n", wp->NO, wp->expr);
@@ -92,11 +121,12 @@ void watch_wp(char *expr, int result) {
 
 void delete_wp(int no) {
     // 传入要删除的监视点的序号
-    if (no > NR_WP) {
-        printf("Watchpoint too large.\n");
+    if (no < 0 || no >= NR_WP) {
+        printf("Watchpoint number out of range.\n");
         return;
     }
     WP *cur = &wp_pool[no];
+
     free_wp(cur);
     printf("Delete watchpoint %d\n",cur->NO);
 }
@@ -112,6 +142,7 @@ void difftest_wp(void) {
                    "New value: %d\n",
                    cur->NO, cur->expr, cur->old_result, new_result);
             cur->old_result = new_result;
+            nemu_state.state = NEMU_STOP;
         }
         cur = cur->next;
     }
