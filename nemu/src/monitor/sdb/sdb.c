@@ -34,9 +34,6 @@
 
 static int is_batch_mode = false;
 
-#define test
-//#define sscanf_version
-
 void init_regex();
 void init_wp_pool();
 
@@ -111,111 +108,66 @@ bool is_hex(const char *str) {
         return false;
     }
 
-    /* 先不做这么多判断，就看开头是不是0x的。
-    while (*str) {
-        if (!isxdigit((unsigned char)*str)) { // 使用 isxdigit 检查是否为十六进制字符
-            return false;
-        }
-        str++;
-    }
-    */
-
+    /* 先不做这么多判断，就看开头是不是0x的 */
 }
 
-#ifdef sscanf_version
-static int cmd_x(char *args) {
-    // 默认是输出连续的 4 个字节，给出n，就 4 * n
-    // 默认以 16 进制输出
-    // 记得防御性编程
-
-   // char *num = strtok_r(args, " ", NULL);
-    
-    if (args == NULL) {
-        printf("Please pass argument.\n");
-        return 0;
-    }
-
-    unsigned long test_expr = 0x80000000;
-    int num = 1;
-    int scanned = 0;
-
-    // 尝试解析一个整数和一个十六进制数
-    scanned = sscanf(args, "%d %lx", &num, &test_expr);
-    if (scanned < 2) {
-        // 如果未成功解析出两个值，则尝试只解析一个十六进制数，默认 num 为 1
-        num = 1;
-        scanned = sscanf(args, "%lx", &test_expr);
-        if (scanned < 1) {
-            printf("Please pass argument.\n");
-            return 0;
-        }
-    }
-
-    word_t result = vaddr_read((vaddr_t)test_expr, 4);
+void display_mem2val(unsigned long addr, int num) {
+    word_t value= vaddr_read((vaddr_t)addr, 4);
     for (int i = 0; i < num; i++) {
-       result = vaddr_read((vaddr_t)test_expr + i * 4, 4);
-       printf("0x%08lx: 0x%08x\n", test_expr + i * 4, result);
+       value= vaddr_read((vaddr_t)addr + i * 4, 4);
+       printf("0x%08lx: 0x%08x\n", addr + i * 4, value);
     }
 
-    return 0;
 }
-#endif
 
-#ifdef test
-// version atoi,strtoull
+/**
+ * The default is to output 4 continuous bytes
+ * n defaults to 1
+ */
 static int cmd_x(char *args) {
-    // 默认是输出连续的 4 个字节，给出n，就 4 * n
-    // 默认以 16 进制输出
-    // 记得防御性编程
-
-   // char *num = strtok_r(args, " ", NULL);
-    
     if (!args) {
         printf("Usage: x N EXPR\n");
         return 0;
     }
 
-    unsigned long test_expr = 0x80000000;
-    int num = 1;
+    unsigned long addr = 0;
 
     char *str = strdup(args);
     Assert(str != NULL, "memory allocate error."); 
 
     char *token = strtok(str, " ");
-    char *next = strtok(NULL, " ");
-    
-    // 第一个token 不可能为NULL，已经经过上面的判断了。
-    if (!is_hex(token)) {
-        char *end = NULL;
-        num = atoi(token);
-        if (next != NULL && is_hex(next)) {
-            test_expr = strtoul(next, &end, 16);
-            if (*end != '\0') { // 这个函数的使用有点问题
-                printf("please pass the correct hex.\n");
-                free(str);
-                str = NULL;
-                return 0;
-            }
-        } else {
-            printf("please pass the expr or the correct hex.\n");
+    char *endptr;
+    int num = strtol(token, &endptr, 10);
+    if (*endptr == '\0') {
+        // conversion success, token is decimal.
+        token = strtok(NULL, " ");
+    } else {
+        // failed, token maybe a hex or an expression
+        num = 1;
+    }
+
+    if (is_hex(token)) {
+        // pass hex
+        addr = strtoul(token, NULL, 16);
+    } else {
+        // pass expression
+        bool success = true;
+        addr = expr(token, &success);
+        if (!success) {
+            printf("eval failed.\n");
             free(str);
             str = NULL;
             return 0;
         }
     }
 
-    word_t result = vaddr_read((vaddr_t)test_expr, 4);
-    for (int i = 0; i < num; i++) {
-       result = vaddr_read((vaddr_t)test_expr + i * 4, 4);
-       printf("0x%08lx: 0x%08x\n", test_expr + i * 4, result);
-    }
+    display_mem2val(addr, num);
 
     free(str);
     str = NULL;
 
     return 0;
 }
-#endif
 
 static int cmd_p(char *args) {
     if (!args) {
@@ -224,8 +176,8 @@ static int cmd_p(char *args) {
     }
     bool success = true;
     int result = expr(args, &success);
-    if (success == false) {
-        printf("error eval.\n");
+    if (!success) {
+        printf("eval failed.\n");
         return 0;
     }
     printf("uint32_t dec: %"PRIu32"\n", result);

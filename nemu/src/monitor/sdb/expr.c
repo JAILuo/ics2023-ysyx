@@ -21,6 +21,7 @@
  */
 #include <assert.h>
 #include <limits.h>
+#include <readline/chardefs.h>
 #include <regex.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,16 +42,15 @@ enum {
   TK_DIV = 3,
   TK_EQ = 4,
   TK_NEQ = 5,
-  TK_LOGICAL_AND = 6,
+  TK_AND = 6,
+  TK_OR = 7,
 
-  TK_RIGHT_PAR = 7,
-  TK_LEFT_PAR = 8,
+  TK_RIGHT_PAR = 8,
+  TK_LEFT_PAR = 9,
 
-  TK_NEG = 9,
+  TK_NEG = 10,
 
-  /* TODO: merge thr TK_NUM and TK_HEX*/
-  TK_NUM = 10,
-  TK_HEX = 11,
+  TK_NUM = 11,
   TK_REG_NAME = 12,
 
   TK_DEREF = 13,
@@ -68,23 +68,14 @@ static struct rule {
      * Pay attention to the precedence level of different rules.
      */
 
-    // 如何安排这些规则的顺序，是个问题
-    // 运算符的顺序和和这个规则顺序应该不太一样。
     {" +", TK_NOTYPE}, // spaces
 
     {"\\(", TK_LEFT_PAR},
     {"\\)", TK_RIGHT_PAR},
 
-    /**
-     * 这里的规则优先级是不是也是需要注意下的? 
-     * 如果TK_NUM在前面，会导致0x被截断？
-     * 那这样不会也导致NUM的优先级地域HEX？
-     * 要不统一使用NUM，之后再区分是HEX还是DEC？
-     */
-    /* hexadecimal number */
-    {"0[xX][0-9a-fA-F]+", TK_HEX},
-    // numbers (确保是+号，表示一个或多个数字)
-    {"[0-9]+", TK_NUM},
+    /* hex and dec */
+    {"0[xX][0-9a-fA-F]+|[0-9]+", TK_NUM},
+   
     // register name (确保在数字之后，这样数字不会被当作单词匹配)
     {"\\$\\w+|\\w+", TK_REG_NAME}, // 有不是$开头的
 
@@ -93,7 +84,8 @@ static struct rule {
     {"==", TK_EQ},
 
     /* logical operator */
-    {"&&", TK_LOGICAL_AND},
+    {"&&", TK_AND},
+    {"\\|\\|", TK_OR},
 
     {"\\+", TK_ADD},    
     {"-", TK_SUB},      // sub and neg
@@ -128,7 +120,7 @@ void init_regex() {
 typedef struct token {
   int type;
   char str[128];
-  word_t num_value;
+  int num_value;
 } Token;
 
 static Token tokens[128] __attribute__((used)) = {};
@@ -153,11 +145,6 @@ static bool make_token(char *e) {
             rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
-
-        /* TODO: Now a new token is recognized with rules[i]. Add codes
-         * to record the token in the array `tokens'. For certain types
-         * of tokens, some extra actions should be performed.
-         */
 
         i = add_token(substr_start, substr_len, i);
         break;
@@ -200,7 +187,6 @@ int add_token(char *substr_start, int substr_len, int i) {
             if (substr_len > sizeof(tokens[nr_token].str) - 1) {
                 substr_len = sizeof(tokens[nr_token].str) - 1;
             }
-
             strncpy(tokens[nr_token].str, substr_start, substr_len);
             tokens[nr_token].str[substr_len] = '\0';
             nr_token++;
@@ -212,18 +198,6 @@ int add_token(char *substr_start, int substr_len, int i) {
 
         case TK_LEFT_PAR:
             tokens[nr_token++].type = TK_LEFT_PAR;
-            break;
-
-        case TK_HEX:
-            tokens[nr_token].type = TK_HEX;
-            char *hex_start = substr_start + 2;
-            int hex_len = substr_len - 2;
-            if (hex_len > sizeof(tokens[nr_token].str) - 1) {
-                hex_len = sizeof(tokens[nr_token].str) - 1;
-            }
-            strncpy(tokens[nr_token].str, hex_start, hex_len);
-            tokens[nr_token].str[hex_len] = '\0';
-            nr_token++;
             break;
 
         case TK_REG_NAME:
@@ -242,9 +216,12 @@ int add_token(char *substr_start, int substr_len, int i) {
             tokens[nr_token++].type = TK_NEQ;
             break;
 
-        case TK_LOGICAL_AND:
-            tokens[nr_token++].type = TK_LOGICAL_AND;
+        case TK_AND:
+            tokens[nr_token++].type = TK_AND;
             break;
+
+        case TK_OR:
+            tokens[nr_token++].type = TK_OR;
 
         default:
             printf("No rules were mathced with %s\n", substr_start);
@@ -253,9 +230,6 @@ int add_token(char *substr_start, int substr_len, int i) {
     return i; 
 }
 
-/**
- * version1.2
- */
 bool check_parentheses(int p, int q) {
     if (tokens[p].type != TK_LEFT_PAR || tokens[q].type != TK_RIGHT_PAR) {
         return false;
@@ -283,10 +257,10 @@ bool check_parentheses(int p, int q) {
     Stack_destroy(stack);
     return true;
 }
+
 /**
- * C语言运算符优先级
- *
- * 乘除 > 加减 > 左/右移 > (不)等于 > 逻辑
+ * Operator precedence 
+ * Refer to the C Language manual
  */
 int get_priority(int op_type) {
     switch (op_type) {
@@ -299,9 +273,10 @@ int get_priority(int op_type) {
         case TK_EQ:
         case TK_NEQ:
             return 3;
-        case TK_LOGICAL_AND:
+        case TK_AND:
+        case TK_OR:
             return 4;
-        default:return 0; // Default priority for non-operators
+        default:return -1; // Default priority for non-operators
   }
 }
 
@@ -333,7 +308,7 @@ int find_main_operator(int p, int q, int *min_priority) {
             }
         } else if (tokens[i].type == TK_NOTYPE) {
             continue;
-        } else if (tokens[i].type >= TK_ADD && tokens[i].type <= TK_LOGICAL_AND) {
+        } else if (tokens[i].type >= TK_ADD && tokens[i].type <= TK_OR) {
             // 只有在不在括号内时，才检查运算符
             if (in_parens == 0) {
                 int priority = get_priority(tokens[i].type);
@@ -358,66 +333,25 @@ int find_main_operator(int p, int q, int *min_priority) {
     return op;
 }
 
-static inline int op_add(int a, int b) {
-    return a + b;
-}
-
-static inline int op_sub(int a, int b) {
-    return a - b;
-}
-
-static inline int op_mul(int a, int b) {
-    return a * b;
-}
-
-static int op_div(int a, int b) {
-    if (b == 0) {
-        fprintf(stderr, "Error: Division by zero.\n");
-        exit(EXIT_FAILURE);
-    }
-    return a / b;
-}
-
-static inline int op_eq(int a, int b) {
-    return a == b;
-}
-
-static inline int op_neq(int a, int b) {
-    return a != b;
-}
-
-static inline int op_logical_and(int a, int b) {
-    return a && b;
-}
-
-
-typedef int (*BinaryOperation)(int, int);
-/**
- * 下面这个函数顺序和token类型顺序一致?
- */
-BinaryOperation operations[] = {
-    op_add, 
-    op_sub,
-    op_mul,
-    op_div,
-    op_eq,
-    op_neq,
-    op_logical_and,
-    // 指针解引用不涉及数值计算
-};
-
 int compute(int op_type, int val1, int val2) {
-    if (op_type < TK_ADD || op_type > TK_LOGICAL_AND) {
-        fprintf(stderr, "Invalid operation type: %d\n", op_type);
-        exit(EXIT_FAILURE);
+    switch (op_type) {
+        case TK_ADD: return val1 + val2;
+        case TK_SUB: return val1 - val2;
+        case TK_MUL: return val1 * val2;
+        case TK_DIV:
+            if (val2 == 0) {
+                fprintf(stderr, "Error: Division by zero.\n");
+                exit(EXIT_FAILURE);
+            }
+            return val1 / val2;
+        case TK_EQ: return val1 == val2;
+        case TK_NEQ: return val1 != val2;
+        case TK_AND: return val1 && val2;
+        case TK_OR: return val1 || val2;
+        default:
+            fprintf(stderr, "Invalid operation type: %d\n", op_type);
+            exit(EXIT_FAILURE);
     }
-
-    BinaryOperation op = operations[op_type];
-    if (op == NULL) {
-        fprintf(stderr, "Operation not supported: %d\n", op_type);
-        exit(EXIT_FAILURE);
-    }
-    return op(val1, val2);
 }
 
 /* Single token.
@@ -426,10 +360,7 @@ int compute(int op_type, int val1, int val2) {
  */
 int eval_operand(int p, bool *success) {
     switch (tokens[p].type) {
-        case TK_NUM:
-            return tokens[p].num_value;
-            break;
-        case TK_HEX:
+        case TK_NUM: // dec and hex
             return tokens[p].num_value;
             break;
         case TK_REG_NAME:
@@ -477,7 +408,7 @@ int eval(int p, int q) {
 }
 
 /**
- * 检查并转换负号标记。
+ * Check and convert the negative mark. 
  */
 void is_neg(void) {
   for (int i = 0; i < nr_token; i++) {
@@ -494,149 +425,82 @@ void is_neg(void) {
  * 从start往后的内容，都往前移动count个单位
  * 为新元素腾出空间，保持数组内容的连续性
  *
- * 需要做成宏吗？这个函数我还是挺常用的？
  */
 void shift_left(int start, int count) {
   for (int j = start; j < nr_token; ++j) {
     tokens[j - count] = tokens[j];
   }
-  // 为什么要覆盖这个？我不是要覆盖最后一个吗？
-  //memset(&tokens[start + count], 0, sizeof(tokens[start + count]));
   memset(&tokens[nr_token - 1], 0, sizeof(tokens[nr_token - 1]));
   nr_token -= count;
 }
 
 /**
- * 处理连续的负号和开头的负号。
- *
- * @note 处理连续的负号和开头的负号
- * @note i + 2 出现这么多次?
- * @note eg. 2--1 :第一个减号为i
- *
- * TODO: 要改，我这样有点相当于穷举了，没有考虑到他单目运算符的特点了
- *       不过没关系，先把功能实现了。
+ * Use unary operator, direct 1 -> -1
  */
 int handle_neg(int i) {
-    if (tokens[0].type == TK_NEG // 开头负号：-1+2
-               && (tokens[i + 1].type == TK_NUM))
-    {
+    bool isUnary = (i == 0 || tokens[i - 1].type != TK_NUM);
+
+    if (isUnary && tokens[i + 1].type == TK_NUM) {
+        // Unary operator
         int num_value = 0;
         if (sscanf(tokens[i + 1].str, "%d", &num_value) != 1) {
             fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 1].str);
             exit(EXIT_FAILURE);
         }
         tokens[i + 1].num_value = -num_value;
-        shift_left(i + 1 , 1);
+        shift_left(i + 1, 1);
         i++;
-    }else if (tokens[0].type == TK_NEG 
-              && tokens[1].type == TK_NEG) { // 2+ (-1)
-        int num_value = 0;
-        // 我这么处理应该也是有很大问题的，要是出现连续的负号
-        if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
-            fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
-            exit(EXIT_FAILURE);
-        }
-        tokens[i + 2].num_value = -num_value;
-        tokens[i] = tokens[i + 2];
-        memset(&tokens[1], 0, sizeof(tokens[1]));
-        memset(&tokens[2], 0, sizeof(tokens[2])); 
-        nr_token-=2;
-        i += 2;
-    } else if (tokens[i + 1].type == TK_NEG
-               && tokens[i + 2].type == TK_NUM) {
-        int num_value = 0;
-        switch (tokens[i].type) { 
-            case TK_LEFT_PAR: //这里的逻辑怎么实现？
-                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
-                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
-                    exit(EXIT_FAILURE);
-                }
-                tokens[i + 2].num_value = -num_value;
-                shift_left(i + 2, 1);
-                i++;
-                break;
-            case TK_RIGHT_PAR: //这里的逻辑怎么实现？
-                tokens[i + 1].type = TK_ADD;
-                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
-                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
-                    exit(EXIT_FAILURE);
-                }
-                tokens[i + 2].num_value = -num_value;
-                i+=2;
-                break;
-
-            case TK_ADD:
-                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
-                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
-                    exit(EXIT_FAILURE);
-                }
-                tokens[i + 2].num_value = -num_value;
-                shift_left(i + 2, 1);
-                i++;
-                break;
-            
-            case TK_SUB:
-                tokens[i].type = TK_ADD;
-                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
-                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
-                    exit(EXIT_FAILURE);
-                }
-                tokens[i + 2].num_value = num_value; 
-                shift_left(i + 2, 1);
-                i += 2;
-                break;
-
-            case TK_MUL:
-                tokens[i].type = TK_MUL;
-                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
-                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
-                    exit(EXIT_FAILURE);
-                }
-                tokens[i + 2].num_value = -num_value;
-                shift_left(i + 2, 1);
-                i++;
-                break;
-        
-            case TK_DIV:
-                tokens[i].type = TK_DIV;
-                if (sscanf(tokens[i + 2].str, "%d", &num_value) != 1) {
-                    fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 2].str);
-                    exit(EXIT_FAILURE);
-                }
-                tokens[i + 2].num_value = -num_value;
-                shift_left(i + 2, 1);
-                i++;
-                break;
-        }
-    }
+        return i;
+    } 
+    // Binary operator
     return i;
 }
 
+bool hex_judge(int i) {
+    if (tokens[i].type != TK_NUM) {
+        return false;;
+    }
+    if (tokens[i].str[0] == '0' && (tokens[i].str[1] == 'x' || tokens[i].str[1] == 'X')) {
+        return true;
+    }
+    return false;
+}
+
+void hex_reader(int i) {
+    if (tokens[i].type == TK_NUM
+        && sscanf(tokens[i].str, "%x", &tokens[i].num_value) != 1) {
+        fprintf(stderr, "Error converting hexadecimal string to number: %s\n", tokens[i].str);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void dec_reader(int i) {
+    if (tokens[i].type == TK_NUM
+        && sscanf(tokens[i].str, "%d", &tokens[i].num_value) != 1) {
+        fprintf(stderr, "Error converting string to number: %s\n", tokens[i].str);
+        exit(EXIT_FAILURE);
+    }
+}
 /**
- * 将字符串表达式中的数字转换为数值，
+ * numbers in expressions --> numbers
  */
 void str2num(int p, int q) {
     for (int i = p; i < q; ++i) {
-        // 十进制正数
-        if (tokens[i].type == TK_NUM) {
-            if (sscanf(tokens[i].str, "%d", &tokens[i].num_value) != 1) {
-                fprintf(stderr, "Error converting string to number: %s\n", tokens[i].str);
-                exit(EXIT_FAILURE);
-            }
-        } else if (tokens[i].type == TK_HEX) {
-            if (sscanf(tokens[i].str, "%x", &tokens[i].num_value) != 1) {
-                fprintf(stderr, "Error converting hexadecimal string to number: %s\n", tokens[nr_token].str);
-                exit(EXIT_FAILURE);
-            }
+        if (hex_judge(i)) {
+            hex_reader(i);
+        } else {
+            dec_reader(i);
         }
-        // 十进制负数
-        i = handle_neg(i);
+
+        if (tokens[i].type == TK_NEG) {
+            i = handle_neg(i);
+        }
     }
 }
 
 void is_deref() {
     // mul or deref
-    // TODO: 不一定是NUM？REG也可以？还有HEX？
+    // TODO: 不一定是NUM？REG也可以？
     for (int i = 0; i < nr_token; i ++) {
         if (tokens[i].type == TK_MUL
             && (i == 0 || tokens[i - 1].type != TK_NUM) ) {
@@ -648,7 +512,6 @@ void is_deref() {
 void handle_pointer(int p, int q) {
     for (int i = p; i < q; i++) {
         if (tokens[i].type == TK_DEREF) {
-            // 将其直接替换为替换一个内存的值
             // *0x80000000 ---> 663 / 02 73;
             word_t addr = tokens[i + 1].num_value; 
             tokens[i + 1].num_value = vaddr_read((vaddr_t)addr, 4);
