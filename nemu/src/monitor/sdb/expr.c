@@ -40,20 +40,22 @@ enum {
   TK_SUB = 1,
   TK_MUL = 2,
   TK_DIV = 3,
-  TK_EQ = 4,
-  TK_NEQ = 5,
-  TK_AND = 6,
-  TK_OR = 7,
+  TK_GE = 4,
+  TK_LE = 5,
+  TK_EQ = 6,
+  TK_NEQ = 7,
+  TK_LOGICAL_AND = 8,
+  TK_LOGICAL_OR = 9,
 
-  TK_RIGHT_PAR = 8,
-  TK_LEFT_PAR = 9,
+  TK_RIGHT_PAR = 10,
+  TK_LEFT_PAR = 11,
 
-  TK_NEG = 10,
+  TK_NEG = 12,
 
-  TK_NUM = 11,
-  TK_REG_NAME = 12,
+  TK_NUM = 13,
+  TK_REG_NAME = 14,
 
-  TK_DEREF = 13,
+  TK_DEREF = 15,
 
   // 更多运算符：<= >=
   /* TODO: Add more token types */
@@ -79,19 +81,21 @@ static struct rule {
     // register name (确保在数字之后，这样数字不会被当作单词匹配)
     {"\\$\\w+|\\w+", TK_REG_NAME}, // 有不是$开头的
 
-    /* comparison operators */
-    {"!=", TK_NEQ},
-    {"==", TK_EQ},
-
-    /* logical operator */
-    {"&&", TK_AND},
-    {"\\|\\|", TK_OR},
-
     {"\\+", TK_ADD},    
     {"-", TK_SUB},      // sub and neg
     {"\\*", TK_MUL},    // mul and deref. 
     {"/", TK_DIV},
 
+    {">=", TK_GE},
+    {"<=", TK_LE},
+
+    /* comparison operators */
+    {"!=", TK_NEQ},
+    {"==", TK_EQ},
+
+    /* logical operator */
+    {"&&", TK_LOGICAL_AND},
+    {"\\|\\|", TK_LOGICAL_OR},
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -120,7 +124,7 @@ void init_regex() {
 typedef struct token {
   int type;
   char str[128];
-  int num_value;
+  word_t num_value;
 } Token;
 
 static Token tokens[128] __attribute__((used)) = {};
@@ -150,7 +154,6 @@ static bool make_token(char *e) {
         break;
       }
     }
-
     if (i == NR_REGEX) {
       printf("no match at position %d\n%s\n%*.s^\n", position, e, position, "");
       return false;
@@ -160,74 +163,22 @@ static bool make_token(char *e) {
   return true;
 }
 
+#define NEEDS_STRING(type) ((type) == TK_NUM || (type) == TK_REG_NAME) /* 其他需要字符串的token类型 */
 int add_token(char *substr_start, int substr_len, int i) {
-    switch (rules[i].token_type) {
-        case TK_NOTYPE:
-            break;
+    tokens[nr_token].type = rules[i].token_type;
+    tokens[nr_token].num_value = 0; // 初始化数值
 
-        case TK_ADD:
-            tokens[nr_token++].type = TK_ADD;
-            break;
-
-        case TK_SUB: // sub and negative.
-            tokens[nr_token++].type = TK_SUB;
-            break;
-
-        case TK_MUL: // mul and
-            tokens[nr_token++].type = TK_MUL;
-            break;
-
-        case TK_DIV:
-            tokens[nr_token++].type = TK_DIV;
-            break;
-
-        case TK_NUM: // 比如说传进来一个数字 1234, 不能只判断1, 后面就没了。
-            tokens[nr_token].type = TK_NUM;
-            // 怎么判断一直到数字？直接在这个 token 的 substr_len 即可.
-            if (substr_len > sizeof(tokens[nr_token].str) - 1) {
-                substr_len = sizeof(tokens[nr_token].str) - 1;
-            }
-            strncpy(tokens[nr_token].str, substr_start, substr_len);
-            tokens[nr_token].str[substr_len] = '\0';
-            nr_token++;
-            break;
-
-        case TK_RIGHT_PAR:
-            tokens[nr_token++].type = TK_RIGHT_PAR;
-            break;
-
-        case TK_LEFT_PAR:
-            tokens[nr_token++].type = TK_LEFT_PAR;
-            break;
-
-        case TK_REG_NAME:
-            tokens[nr_token].type = TK_REG_NAME;
-            // 复制寄存器名称
-            strncpy(tokens[nr_token].str, substr_start, substr_len);
-            tokens[nr_token].str[substr_len] = '\0';
-            nr_token++;
-            break;
-
-        case TK_EQ:
-            tokens[nr_token++].type = TK_EQ;
-            break;
-
-        case TK_NEQ:
-            tokens[nr_token++].type = TK_NEQ;
-            break;
-
-        case TK_AND:
-            tokens[nr_token++].type = TK_AND;
-            break;
-
-        case TK_OR:
-            tokens[nr_token++].type = TK_OR;
-
-        default:
-            printf("No rules were mathced with %s\n", substr_start);
-            break;
+    if (NEEDS_STRING(rules[i].token_type)) {
+        // 如果token类型需要字符串，则复制它
+        if (substr_len > sizeof(tokens[nr_token].str) - 1) {
+            substr_len = sizeof(tokens[nr_token].str) - 1;
+        }
+        strncpy(tokens[nr_token].str, substr_start, substr_len);
+        tokens[nr_token].str[substr_len] = '\0';
     }
-    return i; 
+
+    nr_token++;
+    return i;
 }
 
 bool check_parentheses(int p, int q) {
@@ -270,12 +221,15 @@ int get_priority(int op_type) {
         case TK_MUL:
         case TK_DIV:
             return 2;
+        case TK_GE:
+        case TK_LE:
+            return 3;
         case TK_EQ:
         case TK_NEQ:
-            return 3;
-        case TK_AND:
-        case TK_OR:
             return 4;
+        case TK_LOGICAL_AND:
+        case TK_LOGICAL_OR:
+            return 5;
         default:return -1; // Default priority for non-operators
   }
 }
@@ -301,14 +255,14 @@ int find_main_operator(int p, int q, int *min_priority) {
                 Stack_pop(stack);
                 in_parens--;
             } else {
-                // 如果栈为空，说明右括号没有匹配的左括号
+                // 栈为空，右括号没有匹配的左括号
                 printf("Error: Unmatched right parenthesis\n");
                 Stack_destroy(stack);
                 return -1;
             }
         } else if (tokens[i].type == TK_NOTYPE) {
             continue;
-        } else if (tokens[i].type >= TK_ADD && tokens[i].type <= TK_OR) {
+        } else if (tokens[i].type >= TK_ADD && tokens[i].type <= TK_LOGICAL_OR) {
             // 只有在不在括号内时，才检查运算符
             if (in_parens == 0) {
                 int priority = get_priority(tokens[i].type);
@@ -328,12 +282,12 @@ int find_main_operator(int p, int q, int *min_priority) {
         Stack_destroy(stack);
         return -1;
     }
-    // 销毁栈
+
     Stack_destroy(stack);
     return op;
 }
 
-int compute(int op_type, int val1, int val2) {
+word_t compute(int op_type, int val1, int val2) {
     switch (op_type) {
         case TK_ADD: return val1 + val2;
         case TK_SUB: return val1 - val2;
@@ -344,10 +298,12 @@ int compute(int op_type, int val1, int val2) {
                 exit(EXIT_FAILURE);
             }
             return val1 / val2;
+        case TK_GE: return val1 >= val2;
+        case TK_LE: return val1 <= val2;
         case TK_EQ: return val1 == val2;
         case TK_NEQ: return val1 != val2;
-        case TK_AND: return val1 && val2;
-        case TK_OR: return val1 || val2;
+        case TK_LOGICAL_AND: return val1 && val2;
+        case TK_LOGICAL_OR: return val1 || val2;
         default:
             fprintf(stderr, "Invalid operation type: %d\n", op_type);
             exit(EXIT_FAILURE);
@@ -358,7 +314,7 @@ int compute(int op_type, int val1, int val2) {
  * For now this token should be a number.
  * Return the value of the number.
  */
-int eval_operand(int p, bool *success) {
+word_t eval_operand(int p, bool *success) {
     switch (tokens[p].type) {
         case TK_NUM: // dec and hex
             return tokens[p].num_value;
@@ -366,7 +322,7 @@ int eval_operand(int p, bool *success) {
         case TK_REG_NAME:
             return isa_reg_str2val(tokens[p].str, success);
         default:
-            printf("error_eval, expect number but got %d\n", tokens[p].type);
+            printf("error_eval, expect number or reg name but got %d\n", tokens[p].type);
             return INT_MAX;
             break;
     }
@@ -376,7 +332,7 @@ int eval_operand(int p, bool *success) {
  * 在token表达式(tokens)中指示一个子表达式,
  * 使用两个整数 p 和 q 来指示这个子表达式的开始位置和结束位置.
  */
-int eval(int p, int q) {
+word_t eval(int p, int q) {
     int op_type;
     if (p > q) {
         /* Bad expression */
@@ -401,8 +357,8 @@ int eval(int p, int q) {
         }
         op_type = tokens[op].type;
 
-        int val1 = eval(p, op - 1);
-        int val2 = eval(op + 1, q);
+        word_t val1 = eval(p, op - 1);
+        word_t val2 = eval(op + 1, q);
         return compute(op_type, val1, val2);
     }
 }
@@ -413,8 +369,9 @@ int eval(int p, int q) {
 void is_neg(void) {
   for (int i = 0; i < nr_token; i++) {
     if (tokens[i].type == TK_SUB) {
-      if ((i == 0) ||
-          (tokens[i - 1].type != TK_NUM && tokens[i + 1].type == TK_NUM)) {
+      if ((i == 0)
+          || (tokens[i - 1].type != TK_NUM && tokens[i - 1]. type != TK_RIGHT_PAR
+              &&tokens[i + 1].type == TK_NUM)) {
         tokens[i].type = TK_NEG;
       }
     }
@@ -435,15 +392,16 @@ void shift_left(int start, int count) {
 }
 
 /**
- * Use unary operator, direct 1 -> -1
+ * Unary operator, direct 1 -> -1
  */
 int handle_neg(int i) {
-    bool isUnary = (i == 0 || tokens[i - 1].type != TK_NUM);
+    bool isUnary = (i == 0 
+                    || (tokens[i - 1].type != TK_NUM && tokens[i - 1].type != TK_RIGHT_PAR));
 
     if (isUnary && tokens[i + 1].type == TK_NUM) {
         // Unary operator
-        int num_value = 0;
-        if (sscanf(tokens[i + 1].str, "%d", &num_value) != 1) {
+        word_t num_value = 0;
+        if (sscanf(tokens[i + 1].str,"%"PRIu32"", &num_value) != 1) {
             fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 1].str);
             exit(EXIT_FAILURE);
         }
@@ -482,7 +440,7 @@ void dec_reader(int i) {
     }
 }
 /**
- * numbers in expressions --> numbers
+ * numbers in string(expressions) --> numbers
  */
 void str2num(int p, int q) {
     for (int i = p; i < q; ++i) {
@@ -500,11 +458,17 @@ void str2num(int p, int q) {
 
 void is_deref() {
     // mul or deref
-    // TODO: 不一定是NUM？REG也可以？
+    // TODO: 不一定是NUM？REG也可以？括号也可以？
     for (int i = 0; i < nr_token; i ++) {
-        if (tokens[i].type == TK_MUL
-            && (i == 0 || tokens[i - 1].type != TK_NUM) ) {
-            tokens[i].type = TK_DEREF;
+        if (tokens[i].type == TK_MUL)  {
+            if (i == 0 
+                || (tokens[i - 1].type != TK_NUM && tokens[i - 1].type != TK_RIGHT_PAR)) {
+                tokens[i].type = TK_DEREF;
+                printf("tokens[%d].type: %d\n"
+                       "tokens[%d].str: %s\n"
+                       "tokens[%d].number: %d\n",
+                       i, tokens[i].type, i, tokens[i].str, i, tokens[i].num_value);
+            }
         }
     }
 }
@@ -530,7 +494,7 @@ void tokens_pre_processing(void) {
     handle_pointer(0, nr_token);
 }
 
-int expr(char *e, bool *success) {
+word_t expr(char *e, bool *success) {
   if (!make_token(e)) {
     *success = false;
     return 0;
@@ -539,7 +503,7 @@ int expr(char *e, bool *success) {
   tokens_pre_processing();
 
   /* TODO: Insert codes to evaluate the expression. */
-  int result = eval(0, nr_token - 1);
+  word_t result = eval(0, nr_token - 1);
   // 赋值范围问题，隐式转换，解决?
 
   if (result == INT_MAX) {

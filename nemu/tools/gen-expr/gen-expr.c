@@ -81,19 +81,12 @@ bool is_last_operator(void) {
 bool is_last_leftparens(void) {
     if (buf_index == 0) return false;
     char last_char = buf[buf_index - 1];
-    return strchr(") ", last_char) != NULL;
+    return strchr(")", last_char) != NULL;
 }
 bool is_last_rightparens(void) {
     if (buf_index == 0) return false;
     char last_char = buf[buf_index - 1];
     return strchr("( ", last_char) != NULL;
-}
-
-// 是不是需要将左右括号分开？ 是的
-bool is_last_space(void) {
-    if (buf_index == 0) return false;
-    char last_char = buf[buf_index - 1];
-    return strchr(" ", last_char) != NULL;
 }
 
 // 检查最后一个字符是否是数字
@@ -134,28 +127,22 @@ void gen_rand_expr() {
   }
 }
 */
+
 static void gen_rand_expr() {
     switch (choose(3)) {
         case 0:
-            if( buf[strlen(buf) - 1]!=')')
-            {
-            gen_num(); // 生成随机数字
-            }
-            else
-            {
-              gen_rand_expr();
+            if (!is_last_leftparens()) {
+                gen_num(); 
+            } else {
+                gen_rand_expr();
             }
             break;
         case 1:
-              // 避免在操作数之后立即插入左括号，而是在操作符之后插入左括号
-            if (buf[0] != '\0' &&  strchr("+-*/", buf[strlen(buf) - 1]))
-            {
-                //strcat(buf, "("); // 将左括号添加到缓冲区末尾
+            if (buf[0] != '\0' && is_last_operator()) {
+                strcat(buf, "("); buf_index++; // 将左括号添加到缓冲区末尾
                 gen_rand_expr(); // 递归生成随机表达式
-                //strcat(buf, ")"); // 将右括号添加到缓冲区末尾
-            }
-            else
-            {
+                strcat(buf, ")"); buf_index++;// 将右括号添加到缓冲区末尾
+            } else {
                 gen_rand_expr(); // 递归生成随机表达式
             }
             break;
@@ -185,6 +172,7 @@ int main(int argc, char *argv[]) {
     fputs(code_buf, fp);
     fclose(fp);
 
+    // filter div zero by compiler
     int ret = system("gcc /tmp/.code.c -o /tmp/.expr");
     if (ret != 0) continue;
 

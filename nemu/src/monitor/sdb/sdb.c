@@ -26,6 +26,7 @@
 #include <isa.h>
 #include <debug.h>
 #include <cpu/cpu.h>
+#include "common.h"
 #include "sdb.h"
 #include "utils.h"
 #include <memory/vaddr.h>
@@ -175,7 +176,7 @@ static int cmd_p(char *args) {
         return 0;
     }
     bool success = true;
-    int result = expr(args, &success);
+    word_t result = expr(args, &success);
     if (!success) {
         printf("eval failed.\n");
         return 0;
