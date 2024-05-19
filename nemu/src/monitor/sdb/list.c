@@ -1,5 +1,5 @@
-#include "list.h"
-#include "dbg.h"
+#include <data-structure/list.h>
+#include <data-structure/dbg.h>
 #include <assert.h>
 
 List *List_create()

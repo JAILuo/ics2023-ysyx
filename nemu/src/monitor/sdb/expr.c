@@ -31,7 +31,7 @@
 #include "common.h"
 #include "macro.h"
 #include "memory/vaddr.h"
-#include "stack.h"
+#include <data-structure/stack.h>
 
 enum {
   TK_NOTYPE = 256,
@@ -57,18 +57,13 @@ enum {
 
   TK_DEREF = 15,
 
-  // 更多运算符：<= >=
-  /* TODO: Add more token types */
+  /* more token types */
 };
 
 static struct rule {
   const char *regex;
   int token_type;
 } rules[] = {
-
-    /* TODO: Add more rules.
-     * Pay attention to the precedence level of different rules.
-     */
 
     {" +", TK_NOTYPE}, // spaces
 
@@ -123,8 +118,8 @@ void init_regex() {
 }
 typedef struct token {
   int type;
-  char str[128];
   word_t num_value;
+  char str[128];
 } Token;
 
 static Token tokens[128] __attribute__((used)) = {};
@@ -138,7 +133,6 @@ static bool make_token(char *e) {
   nr_token = 0;
 
   while (e[position] != '\0') {
-    /* Try all rules one by one. */
     for (i = 0; i < NR_REGEX; i++) {
       if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 &&
           pmatch.rm_so == 0) {
@@ -163,8 +157,12 @@ static bool make_token(char *e) {
   return true;
 }
 
-#define NEEDS_STRING(type) ((type) == TK_NUM || (type) == TK_REG_NAME) /* 其他需要字符串的token类型 */
+/* Add other token types that require str and num_value */
+#define NEEDS_STRING(type) ((type) == TK_NUM || (type) == TK_REG_NAME)
 int add_token(char *substr_start, int substr_len, int i) {
+    if (rules[i].token_type == TK_NOTYPE) {
+        return i;
+    }
     tokens[nr_token].type = rules[i].token_type;
     tokens[nr_token].num_value = 0; // 初始化数值
 
@@ -176,7 +174,6 @@ int add_token(char *substr_start, int substr_len, int i) {
         strncpy(tokens[nr_token].str, substr_start, substr_len);
         tokens[nr_token].str[substr_len] = '\0';
     }
-
     nr_token++;
     return i;
 }
@@ -199,7 +196,7 @@ bool check_parentheses(int p, int q) {
         }
     }
 
-    // 栈非空，有未匹配的左括号
+    /* Unmatched left parentheses */
     if (Stack_count(stack) != 0) {
         Stack_destroy(stack);
         return false;
@@ -215,36 +212,31 @@ bool check_parentheses(int p, int q) {
  */
 int get_priority(int op_type) {
     switch (op_type) {
-        case TK_ADD:
-        case TK_SUB:
+        case TK_ADD:case TK_SUB:
             return 1;
-        case TK_MUL:
-        case TK_DIV:
+        case TK_MUL:case TK_DIV:
             return 2;
-        case TK_GE:
-        case TK_LE:
+        case TK_GE:case TK_LE:
             return 3;
-        case TK_EQ:
-        case TK_NEQ:
+        case TK_EQ:case TK_NEQ:
             return 4;
-        case TK_LOGICAL_AND:
-        case TK_LOGICAL_OR:
+        case TK_LOGICAL_AND:case TK_LOGICAL_OR:
             return 5;
-        default:return -1; // Default priority for non-operators
+        default:return -1;
   }
 }
 
 /**
- * 寻找主运算符
+ * find main operator
  *
  * @note 非运算符的token不是主运算符.
  * @note 出现在一对括号中的token不是主运算符
- * @note 主运算符的优先级在表达式中是最低的?
- *       这里我一直有点难以理解，有点怪怪的？
+ * @note 主运算符的优先级在表达式中是最低的
+ *       运算从左到右
  */
 int find_main_operator(int p, int q, int *min_priority) {
     int op = -1;
-    int in_parens = 0; // 标记运算符是否在括号内
+    int in_parens = 0;
     Stack *stack = Stack_create();
     for (int i = p; i <= q; i++) {
         if (tokens[i].type == TK_LEFT_PAR) {
@@ -255,7 +247,7 @@ int find_main_operator(int p, int q, int *min_priority) {
                 Stack_pop(stack);
                 in_parens--;
             } else {
-                // 栈为空，右括号没有匹配的左括号
+                /* Unmatched right parentheses */
                 printf("Error: Unmatched right parenthesis\n");
                 Stack_destroy(stack);
                 return -1;
@@ -263,20 +255,17 @@ int find_main_operator(int p, int q, int *min_priority) {
         } else if (tokens[i].type == TK_NOTYPE) {
             continue;
         } else if (tokens[i].type >= TK_ADD && tokens[i].type <= TK_LOGICAL_OR) {
-            // 只有在不在括号内时，才检查运算符
+            /* 只有不在括号内时，才检查运算符 */
             if (in_parens == 0) {
                 int priority = get_priority(tokens[i].type);
-                if (priority <= *min_priority) { 
-                    // 注意这里是 <= 
-                    // 因为运算是从左到右
-                    // 但是主运算符是优先级最低的。
+                if (priority <= *min_priority) { /* Note that it is <= */
                     *min_priority = priority;
                     op = i;
                 }
             }
         }
     }
-    // 检查栈是否为空，确保所有括号都已匹配
+
     if (Stack_count(stack) != 0) {
         printf("Error: Unmatched left parenthesis\n");
         Stack_destroy(stack);
@@ -297,7 +286,7 @@ word_t compute(int op_type, int val1, int val2) {
                 fprintf(stderr, "Error: Division by zero.\n");
                 exit(EXIT_FAILURE);
             }
-            return val1 / val2;
+            return (sword_t)val1 / (sword_t)val2;
         case TK_GE: return val1 >= val2;
         case TK_LE: return val1 <= val2;
         case TK_EQ: return val1 == val2;
@@ -370,8 +359,10 @@ void is_neg(void) {
   for (int i = 0; i < nr_token; i++) {
     if (tokens[i].type == TK_SUB) {
       if ((i == 0)
-          || (tokens[i - 1].type != TK_NUM && tokens[i - 1]. type != TK_RIGHT_PAR
-              &&tokens[i + 1].type == TK_NUM)) {
+          || (tokens[i - 1].type != TK_NUM
+              && tokens[i - 1]. type != TK_RIGHT_PAR
+              && tokens[i - 1].type != TK_REG_NAME
+              && tokens[i + 1].type == TK_NUM)) {
         tokens[i].type = TK_NEG;
       }
     }
@@ -380,8 +371,7 @@ void is_neg(void) {
 
 /**
  * 从start往后的内容，都往前移动count个单位
- * 为新元素腾出空间，保持数组内容的连续性
- *
+ * 为新元素腾出空间
  */
 void shift_left(int start, int count) {
   for (int j = start; j < nr_token; ++j) {
@@ -399,7 +389,7 @@ int handle_neg(int i) {
                     || (tokens[i - 1].type != TK_NUM && tokens[i - 1].type != TK_RIGHT_PAR));
 
     if (isUnary && tokens[i + 1].type == TK_NUM) {
-        // Unary operator
+        /* Unary operator */
         word_t num_value = 0;
         if (sscanf(tokens[i + 1].str,"%"PRIu32"", &num_value) != 1) {
             fprintf(stderr, "Error converting string to number: %s\n", tokens[i + 1].str);
@@ -410,7 +400,7 @@ int handle_neg(int i) {
         i++;
         return i;
     } 
-    // Binary operator
+    /* Binary operator */
     return i;
 }
 
@@ -457,12 +447,14 @@ void str2num(int p, int q) {
 }
 
 void is_deref() {
-    // mul or deref
-    // TODO: 不一定是NUM？REG也可以？括号也可以？
+    /* mul or deref */
+    /* TODO: 不一定是NUM？REG也可以？括号也可以？ */
     for (int i = 0; i < nr_token; i ++) {
         if (tokens[i].type == TK_MUL)  {
             if (i == 0 
-                || (tokens[i - 1].type != TK_NUM && tokens[i - 1].type != TK_RIGHT_PAR)) {
+                || (tokens[i - 1].type != TK_NUM 
+                    && tokens[i - 1].type != TK_RIGHT_PAR
+                    && tokens[i - 1].type != TK_REG_NAME)) {
                 tokens[i].type = TK_DEREF;
                 printf("tokens[%d].type: %d\n"
                        "tokens[%d].str: %s\n"
@@ -475,8 +467,7 @@ void is_deref() {
 
 void handle_pointer(int p, int q) {
     for (int i = p; i < q; i++) {
-        if (tokens[i].type == TK_DEREF) {
-            // *0x80000000 ---> 663 / 02 73;
+        if (tokens[i].type == TK_DEREF) {  /* *0x80000000 ---> 663 / 02 73 */
             word_t addr = tokens[i + 1].num_value; 
             tokens[i + 1].num_value = vaddr_read((vaddr_t)addr, 4);
             shift_left(i + 1, 1);
@@ -486,11 +477,9 @@ void handle_pointer(int p, int q) {
 
 void tokens_pre_processing(void) {
     is_neg();
-
     is_deref();
     
     str2num(0, nr_token);
- 
     handle_pointer(0, nr_token);
 }
 
@@ -501,10 +490,7 @@ word_t expr(char *e, bool *success) {
   }
 
   tokens_pre_processing();
-
-  /* TODO: Insert codes to evaluate the expression. */
   word_t result = eval(0, nr_token - 1);
-  // 赋值范围问题，隐式转换，解决?
 
   if (result == INT_MAX) {
     *success = false;

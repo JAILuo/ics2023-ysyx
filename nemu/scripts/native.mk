@@ -36,10 +36,14 @@ run-env: $(BINARY) $(DIFF_REF_SO)
 run: run-env
 	$(call git_commit, "run NEMU")
 	$(NEMU_EXEC)
+	$(preprocess)
 
 gdb: run-env
 	$(call git_commit, "gdb NEMU")
 	gdb -s $(BINARY) --args $(NEMU_EXEC)
+
+count:
+	find $(NEMU_HOME) -name "*.c" -o -name "*.h" | xargs grep -v -e '^$$' | wc -l
 
 clean-tools = $(dir $(shell find ./tools -maxdepth 2 -mindepth 2 -name "Makefile"))
 $(clean-tools):

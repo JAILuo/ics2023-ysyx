@@ -13,6 +13,8 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -26,10 +28,11 @@
 #include <isa.h>
 #include <debug.h>
 #include <cpu/cpu.h>
-#include "common.h"
-#include "sdb.h"
+#include <common.h>
+#include <sdb.h>
 #include "utils.h"
 #include <memory/vaddr.h>
+#include <debug.h>
 /* 为什么写成这个就可以？ */
 /* 默认搜索 src 目录下的文件/目录？ */
 
@@ -62,9 +65,9 @@ static int cmd_c(char *args) {
 }
 
 static int cmd_q(char *args) {
-    if (!nemu_state.halt_ret) {
+//    if (!nemu_state.halt_ret) {
         nemu_state.state = NEMU_QUIT;
-    }
+//    }
   return -1;
 }
 
@@ -108,8 +111,6 @@ bool is_hex(const char *str) {
     } else {
         return false;
     }
-
-    /* 先不做这么多判断，就看开头是不是0x的 */
 }
 
 void display_mem2val(unsigned long addr, int num) {
@@ -300,10 +301,53 @@ void sdb_mainloop() {
     if (i == NR_CMD) { printf("Unknown command '%s'\n", cmd); }
   }
 }
+void test_expr(void) {
+    FILE *fp = fopen("/home/jai/ysyx-workbench/nemu/tools/gen-expr/input", "r");
+    Assert(fp != NULL, "fp open failed");
+    
+    char *str = NULL;
+    word_t correct_result = 0;
+    size_t len = 0;
+    ssize_t read;
+    bool success = true;
+
+    while (true) {
+        if (fscanf(fp, "%u", &correct_result) == EOF) break;
+        printf("expr correct_result: %u\n", correct_result);
+       
+        /**
+         * Why define len here will lead to memory leaks?
+         *
+         * size_t len = 0;
+         */
+        read = getline(&str, &len, fp);
+        Assert(str != NULL, "te111");
+        Assert(read != -1, "getline error");
+        str[read - 1] = '\0';
+
+        word_t result = expr(str, &success);
+        Assert(success == true, "expr: %s evaluate failed.", str);
+
+        if (result != correct_result) {
+            printf("expr: %s evaluate error, expected %u, but got %u\n", str, correct_result, result);
+            Log("test error");
+            return;
+        }
+    }
+
+    fclose(fp);
+    if (str) {
+        free(str);
+        str = NULL;
+    }
+    Log("expr test pass");
+}
 
 void init_sdb() {
   /* Compile the regular expressions. */
   init_regex();
+
+//  test_expr();
 
   /* Initialize the watchpoint pool. */
   init_wp_pool();

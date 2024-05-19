@@ -24,12 +24,15 @@
 
 #define NR_WP 32
 
+/**
+ * Imitate the GDB format
+ */
+
 typedef struct watchpoint {
   int NO;
   struct watchpoint *next;
   char expr[32];
   int old_result;
-  /* TODO: Add more members if necessary */
 
 } WP;
 
@@ -48,7 +51,6 @@ void init_wp_pool() {
   free_ = wp_pool;
 }
 
-/* TODO: Implement the functionality of watchpoint */
 /* Prepend or Append? */
 static WP* new_wp() {
     Assert(free_, "No idle watchpoint.");
@@ -64,7 +66,6 @@ static WP* new_wp() {
     return new_wp;
 }
 
-// 删除监视点时，需要找到其前驱节点
 static WP *find_prev_wp(int no) {
   WP *cur = head;
   WP *prev = NULL;
@@ -74,46 +75,30 @@ static WP *find_prev_wp(int no) {
   }
   return prev;
 }
+
 static void free_wp(WP *wp) {
     if (!wp) return;
 
     WP *prev = find_prev_wp(wp->NO);
-    if (prev == NULL) {
-        // wp是头节点
+    if (prev == NULL) { // wp is head node
         head = wp->next;
-    } else {
-        // 更新前驱节点的next指针以移除wp
+    } else {            // Updatae the next pointer of the prcursor node
         prev->next = wp->next;
     }
     
-    // 将wp添加到空闲监视点链表的头部
+    // Add wp to the header of the idle watchpoint linked list
     wp->next = free_;
     free_ = wp;
-
 }
-/*
-static void free_wp(WP *wp) {
-    WP* tmp = head;
-    if (tmp == wp) {
-        head = NULL;
-    } else {
-        while (tmp && tmp->next != wp) {
-            tmp = tmp->next;
-        }
-        Assert(tmp, "wp is not in the watchpoint linked list.\n");
-        tmp->next = wp->next;
-    }
-    wp->next = free_;
-    free_ = wp;
 
-}
-*/
-
-// 这里strlen和sizeof的区别
 void watch_wp(char *expr, int result) {
     WP *wp = new_wp();
-    strncpy(wp->expr, expr, sizeof(wp->expr) - 1);
-    wp->expr[sizeof(wp->expr) - 1] = '\0';
+    int len = strlen(expr);
+    if (len > sizeof(wp->expr) - 1) {
+        len = sizeof(wp->expr) - 1;
+    }
+    strncpy(wp->expr, expr,len);
+    wp->expr[len] = '\0';
 
     wp->old_result = result;
     printf("watchpoint %d: %s\n", wp->NO, wp->expr);
@@ -131,18 +116,22 @@ void delete_wp(int no) {
     printf("Delete watchpoint %d\n",cur->NO);
 }
 
-void difftest_wp(void) {
+/**
+ * 
+ */
+void diff_wp(void) {
     WP *cur = head;
     bool success = true;
     while (cur) {
         int new_result = expr(cur->expr, &success);
         if (new_result != cur->old_result) {
-            printf("watchpoint %d: %s\n"
+            printf("watchpoint %d: %s\n\n"
                    "Old value: %d\n"
                    "New value: %d\n",
                    cur->NO, cur->expr, cur->old_result, new_result);
             cur->old_result = new_result;
             nemu_state.state = NEMU_STOP;
+            printf("Watchpoint %d triggered. Program paused.\n", cur->NO);
         }
         cur = cur->next;
     }
