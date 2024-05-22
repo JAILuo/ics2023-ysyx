@@ -15,6 +15,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -183,6 +184,7 @@ static int cmd_p(char *args) {
         return 0;
     }
     printf("uint32_t dec: %"PRIu32"\n", result);
+    //printf("uint32_t dec: 0x%016llx\n", (unsigned long long)result);
     printf("int dec: %d\n", (int)result);
     printf("hex: 0x%x\n", (int)result);
     return 0;
