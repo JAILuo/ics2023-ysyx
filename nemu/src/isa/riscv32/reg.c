@@ -53,3 +53,29 @@ word_t isa_reg_str2val(const char *s, bool *success) {
     *success = false;
     return 0;
 }
+/*
+bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
+  int reg_num = ARRLEN(cpu.gpr);
+  int i = 0;
+  bool flag = true;
+  if (ref_r->pc != cpu.pc) {
+    return false;
+  }
+  for (i = 0; i < reg_num; i++) {
+    if (ref_r->gpr[i] != cpu.gpr[i]) {
+      return false;
+    }
+  }
+  if (flag == false) {
+    printf("ref-pc = %x\n", ref_r->pc);
+    for (i = 0; i < reg_num; i++) {
+        if (ref_r->gpr[i] >= 0x80000000) {
+            printf("ref-%3s         %#x\n", regs[i], ref_r->gpr[i]);
+        } else {
+            printf("ref-%3s         %d\n", regs[i],ref_r->gpr[i]);
+        }
+    }
+  }
+  return true;
+}
+*/
