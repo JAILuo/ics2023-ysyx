@@ -159,7 +159,7 @@ static bool make_token(char *e) {
 
 /* Add other token types that require str and num_value */
 #define NEEDS_STRING(type) ((type) == TK_NUM || (type) == TK_REG_NAME)
-int add_token(char *substr_start, int substr_len, int i) {
+static int add_token(char *substr_start, int substr_len, int i) {
     if (rules[i].token_type == TK_NOTYPE) {
         return i;
     }
@@ -178,7 +178,7 @@ int add_token(char *substr_start, int substr_len, int i) {
     return i;
 }
 
-bool check_parentheses(int p, int q) {
+static bool check_parentheses(int p, int q) {
     if (tokens[p].type != TK_LEFT_PAR || tokens[q].type != TK_RIGHT_PAR) {
         return false;
     }
@@ -210,7 +210,7 @@ bool check_parentheses(int p, int q) {
  * Operator precedence 
  * Refer to the C Language manual
  */
-int get_priority(int op_type) {
+static int get_priority(int op_type) {
     switch (op_type) {
         case TK_ADD:case TK_SUB:
             return 1;
@@ -234,7 +234,7 @@ int get_priority(int op_type) {
  * @note 主运算符的优先级在表达式中是最低的
  *       运算从左到右
  */
-int find_main_operator(int p, int q, int *min_priority) {
+static int find_main_operator(int p, int q, int *min_priority) {
     int op = -1;
     int in_parens = 0;
     Stack *stack = Stack_create();
@@ -276,7 +276,7 @@ int find_main_operator(int p, int q, int *min_priority) {
     return op;
 }
 
-word_t compute(int op_type, int val1, int val2) {
+static word_t compute(int op_type, int val1, int val2) {
     switch (op_type) {
         case TK_ADD: return val1 + val2;
         case TK_SUB: return val1 - val2;
@@ -303,7 +303,7 @@ word_t compute(int op_type, int val1, int val2) {
  * For now this token should be a number.
  * Return the value of the number.
  */
-word_t eval_operand(int p, bool *success) {
+static word_t eval_operand(int p, bool *success) {
     switch (tokens[p].type) {
         case TK_NUM: // dec and hex
             return tokens[p].num_value;
@@ -355,7 +355,7 @@ word_t eval(int p, int q) {
 /**
  * Check and convert the negative mark. 
  */
-void is_neg(void) {
+static void is_neg(void) {
   for (int i = 0; i < nr_token; i++) {
     if (tokens[i].type == TK_SUB) {
       if ((i == 0)
@@ -373,7 +373,7 @@ void is_neg(void) {
  * 从start往后的内容，都往前移动count个单位
  * 为新元素腾出空间
  */
-void shift_left(int start, int count) {
+static void shift_left(int start, int count) {
   for (int j = start; j < nr_token; ++j) {
     tokens[j - count] = tokens[j];
   }
@@ -384,7 +384,7 @@ void shift_left(int start, int count) {
 /**
  * Unary operator, direct 1 -> -1
  */
-int handle_neg(int i) {
+static int handle_neg(int i) {
     bool isUnary = (i == 0 
                     || (tokens[i - 1].type != TK_NUM && tokens[i - 1].type != TK_RIGHT_PAR));
 
@@ -404,7 +404,7 @@ int handle_neg(int i) {
     return i;
 }
 
-bool hex_judge(int i) {
+static bool hex_judge(int i) {
     if (tokens[i].type != TK_NUM) {
         return false;;
     }
@@ -414,7 +414,7 @@ bool hex_judge(int i) {
     return false;
 }
 
-void hex_reader(int i) {
+static void hex_reader(int i) {
     if (tokens[i].type == TK_NUM
         && sscanf(tokens[i].str, "%x", &tokens[i].num_value) != 1) {
         fprintf(stderr, "Error converting hexadecimal string to number: %s\n", tokens[i].str);
@@ -422,7 +422,7 @@ void hex_reader(int i) {
     }
 }
 
-void dec_reader(int i) {
+static void dec_reader(int i) {
     if (tokens[i].type == TK_NUM
         && sscanf(tokens[i].str, "%d", &tokens[i].num_value) != 1) {
         fprintf(stderr, "Error converting string to number: %s\n", tokens[i].str);
@@ -432,7 +432,7 @@ void dec_reader(int i) {
 /**
  * numbers in string(expressions) --> numbers
  */
-void str2num(int p, int q) {
+static void str2num(int p, int q) {
     for (int i = p; i < q; ++i) {
         if (hex_judge(i)) {
             hex_reader(i);
@@ -446,7 +446,7 @@ void str2num(int p, int q) {
     }
 }
 
-void is_deref() {
+static void is_deref() {
     /* mul or deref */
     /* TODO: 不一定是NUM？REG也可以？括号也可以？ */
     for (int i = 0; i < nr_token; i ++) {
@@ -465,7 +465,7 @@ void is_deref() {
     }
 }
 
-void handle_pointer(int p, int q) {
+static void handle_pointer(int p, int q) {
     for (int i = p; i < q; i++) {
         if (tokens[i].type == TK_DEREF) {  /* *0x80000000 ---> 663 / 02 73 */
             word_t addr = tokens[i + 1].num_value; 
@@ -475,7 +475,7 @@ void handle_pointer(int p, int q) {
     }
 }
 
-void tokens_pre_processing(void) {
+static void tokens_pre_processing(void) {
     is_neg();
     is_deref();
     

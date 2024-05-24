@@ -105,10 +105,8 @@ bool is_hex(const char *str) {
     if (*str == 0) {
         return false;
     }
-
-    // 检查字符串是否以 "0x" 或 "0X" 开头
     if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
-        return true;; // 跳过 "0x" 前缀
+        return true;; 
     } else {
         return false;
     }
@@ -120,7 +118,6 @@ void display_mem2val(unsigned long addr, int num) {
        value= vaddr_read((vaddr_t)addr + i * 4, 4);
        printf("0x%08lx: 0x%08x\n", addr + i * 4, value);
     }
-
 }
 
 /**
@@ -142,7 +139,7 @@ static int cmd_x(char *args) {
     char *endptr;
     int num = strtol(token, &endptr, 10);
     if (*endptr == '\0') {
-        // conversion success, token is decimal.
+        // convert success, token is decimal.
         token = strtok(NULL, " ");
     } else {
         // failed, token maybe a hex or an expression
