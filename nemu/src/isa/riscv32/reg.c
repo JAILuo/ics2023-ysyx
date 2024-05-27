@@ -29,6 +29,11 @@ const char *regs[] = {
 
 void isa_reg_display() {
     int i = 0;
+    /*
+    printf("----------\t---------------------------\n");
+    printf("|Register|\t|           Value         |\n");
+    printf("----------\t---------------------------\n");
+    */
     for (i = 0;  i < ARRLEN(regs); i++) {
         // General-Purpose Registers
         printf("%-16s0x%08x\t%d\n", regs[i], gpr(i), gpr(i)); 

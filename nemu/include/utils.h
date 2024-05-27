@@ -73,5 +73,9 @@ uint64_t get_time();
     log_write(__VA_ARGS__); \
   } while (0)
 
+// ----------- itrace -----------
+void trace_inst(vaddr_t pc, uint32_t inst);
+//void display_inst(vaddr_t pc);
+void display_inst();
 
 #endif

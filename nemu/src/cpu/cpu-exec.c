@@ -13,6 +13,7 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include "utils.h"
 #include <cpu/cpu.h>
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
@@ -95,6 +96,7 @@ static void statistic() {
 }
 
 void assert_fail_msg() {
+  display_inst();
   isa_reg_display();
   statistic();
 }
@@ -125,6 +127,11 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+
+      if ((nemu_state.state == NEMU_ABORT) || (nemu_state.halt_ret)) {
+          display_inst();
+          isa_reg_display();
+      }
       // fall through
     case NEMU_QUIT: statistic();
   }

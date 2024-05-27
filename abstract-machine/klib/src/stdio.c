@@ -14,7 +14,7 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
   panic("Not implemented");
 }
 
-void reverse(char *start, int len) {
+static void reverse(char *start, int len) {
     if (start && len > 0) {
         char *end = start + len - 1;
         while (start < end) {

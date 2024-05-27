@@ -16,6 +16,7 @@
 #include "common.h"
 #include "local-include/reg.h"
 #include "macro.h"
+#include "utils.h"
 #include <cpu/cpu.h>
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
@@ -104,19 +105,8 @@ static int decode_exec(Decode *s) {
   /* 指令模式匹配和执行 */
   INSTPAT_START();
   /*                rs2   rs1        rd   opcode   */
-
-  INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , R, R(rd) = src1 * src2);
-  INSTPAT("0000001 ????? ????? 100 ????? 01100 11", div    , R, R(rd) = (sword_t)src1 / (sword_t)src2);
-
-  INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem    , R, R(rd) = (sword_t)src1 % (sword_t)src2);
-
-  INSTPAT("0000001 ????? ????? 001 ????? 01100 11", mulh   ,
-          R, R(rd) = BITS(((int64_t)(int32_t)src1 * (int32_t)src2), 63,32));
-  INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , R, R(rd) = src1 % src2);
-  INSTPAT("0000001 ????? ????? 101 ????? 01100 11", divu   , R, R(rd) = src1 / src2);
-
   /* 按照值令格式分*/
-  /* RV32I*/
+  /* RV32I Base Integer Instructions */
   /* R type */
   INSTPAT("0000000 ????? ????? 000 ????? 01100 11", add    , R, R(rd) = src1 + src2);
   INSTPAT("0100000 ????? ????? 000 ????? 01100 11", sub    , R, R(rd) = src1 - src2);
@@ -172,6 +162,18 @@ static int decode_exec(Decode *s) {
   //ecall
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
 
+  /* RV32M Multiply Extension */
+  INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , R, R(rd) = src1 * src2);
+  INSTPAT("0000001 ????? ????? 001 ????? 01100 11", mulh   ,
+          R, R(rd) = BITS(((int64_t)(int32_t)src1 * (int32_t)src2), 63,32));
+          //R, R(rd) = BITS(((uint64_t)(uint32_t)src1 * (uint32_t)src2), 63,32));
+  INSTPAT("0000001 ????? ????? 100 ????? 01100 11", div    , R, R(rd) = (sword_t)src1 / (sword_t)src2);
+  INSTPAT("0000001 ????? ????? 101 ????? 01100 11", divu   , R, R(rd) = src1 / src2);
+  INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem    , R, R(rd) = (sword_t)src1 % (sword_t)src2);
+  INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , R, R(rd) = src1 % src2);
+
+  /* add more... */
+
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
   INSTPAT_END();
 
@@ -182,5 +184,6 @@ static int decode_exec(Decode *s) {
 
 int isa_exec_once(Decode *s) {
   s->isa.inst.val = inst_fetch(&s->snpc, 4);
+  trace_inst(s->pc, s->isa.inst.val);
   return decode_exec(s);
 }
