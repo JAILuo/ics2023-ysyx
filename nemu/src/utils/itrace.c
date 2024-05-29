@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+// ----------- itrace -----------
+
 #define MAX_ITRACE_BUF 16
 
 typedef struct {
@@ -50,6 +52,8 @@ void display_inst() {
     }
 }
 
+
+// ----------- mtrace -----------
 void display_pread(paddr_t addr, int len) {
     // load
     printf("pread at " FMT_PADDR " len=%d\n", addr, len);
@@ -58,5 +62,15 @@ void display_pread(paddr_t addr, int len) {
 void display_pwrite(paddr_t addr, int len, word_t data) {
     // store
     printf("pwrite at " FMT_PADDR " len=%d, data=" FMT_WORD "\n", addr, len, data);
+}
+
+
+// ----------- ftrace -----------
+
+void trace_func_call(paddr_t pc, paddr_t target, bool is_tail) {
+
+}
+
+void trace_func_ret(paddr_t pc) {
 }
 

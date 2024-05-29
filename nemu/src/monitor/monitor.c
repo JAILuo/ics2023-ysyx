@@ -13,8 +13,15 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include "cpu/cpu.h"
 #include <isa.h>
 #include <memory/paddr.h>
+#include <elf.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 void init_rand();
 void init_log(const char *log_file);
@@ -45,6 +52,8 @@ static char *log_file = NULL;
 static char *diff_so_file = NULL;
 static char *img_file = NULL;
 static int difftest_port = 1234;
+static char *elf_file = NULL;
+static Elf64_Ehdr eh;
 
 static long load_img() {
   if (img_file == NULL) {
@@ -74,17 +83,19 @@ static int parse_args(int argc, char *argv[]) {
     {"log"      , required_argument, NULL, 'l'},
     {"diff"     , required_argument, NULL, 'd'},
     {"port"     , required_argument, NULL, 'p'},
+    {"elf"      , required_argument, NULL, 'e'},
     {"help"     , no_argument      , NULL, 'h'},
     {0          , 0                , NULL,  0 },
   };
   int o;
   while ( (o = getopt_long(argc, argv, "-bhl:d:p:", table, NULL)) != -1) {
     switch (o) {
-      case 'b': sdb_set_batch_mode(); break;
-      case 'p': sscanf(optarg, "%d", &difftest_port); break;
-      case 'l': log_file = optarg; break;
-      case 'd': diff_so_file = optarg; break;
-      case 1: img_file = optarg; return 0;
+      case 'b': sdb_set_batch_mode();                   break;
+      case 'p': sscanf(optarg, "%d", &difftest_port);   break;
+      case 'l': log_file = optarg;                      break;
+      case 'd': diff_so_file = optarg;                  break;
+      case  1 : img_file = optarg;                      return 0;
+      case 'e': elf_file = optarg;                      break;
       default:
         printf("Usage: %s [OPTION...] IMAGE [args]\n\n", argv[0]);
         printf("\t-b,--batch              run with batch mode\n");
@@ -96,6 +107,73 @@ static int parse_args(int argc, char *argv[]) {
     }
   }
   return 0;
+}
+
+static void parse_elf_header(int fd) {
+    Assert(lseek(fd, 0, SEEK_SET) != -1, "elf_file: %s lseek error.", elf_file);
+    Assert(read(fd, (void *)&eh, sizeof(Elf64_Ehdr)) == sizeof(Elf64_Ehdr),
+                "elf_file: %s lseek error.", elf_file);
+
+    if (strncmp((const char *)eh.e_ident,  "\x7F ELF", 4) != 0) {
+        panic("elf_file format error");
+    }
+}
+
+static void get_section_header(int fd, Elf64_Shdr *sh_tab) {
+    Assert(lseek(fd, eh.e_shoff, SEEK_SET) == eh.e_shoff,
+                "section header offset error.");
+
+    for (int i = 0; i < eh.e_shnum; i++ ) {
+        Assert(read(fd, &sh_tab[i], eh.e_shentsize) == eh.e_shentsize,
+                    "section header size error.");
+    }
+    // 一行行读到这段表中,应该说逐个section header读取
+}
+
+static void read_section(int fd, Elf64_Shdr sh, void *dst) {
+	assert(dst != NULL);
+	assert(lseek(fd, (off_t)sh.sh_offset, SEEK_SET) == (off_t)sh.sh_offset);
+	assert(read(fd, dst, sh.sh_size) == sh.sh_size);
+}
+
+static void iterate_symbol_table(int fd, Elf64_Shdr *sh_tab, int sym_index) {
+    // 从段表中读取符号表的内容,存到sym_tab
+    Elf64_Sym sym_tab[sh_tab[sym_index].sh_size];
+    read_section(fd, sh_tab[sym_index], sym_tab);
+
+    // 符号一共几个项, 有几行
+    int sym_num = sh_tab[sym_index].sh_size / sizeof(Elf64_Sym);
+    // 从符号表中（符号表也是一个段）读取type为FUNC的 symbol entry
+    for (int i = 0; i < sym_num; i++) {
+        if (sym_tab[i].st_info == STT_FUNC) {
+
+        }
+    }
+    // 还有一个问题，我们现在还需要在段表中找到字符串表
+    // 但是怎么获得在字符串表在段表中的索引呢？就向符号表的sym_index
+
+}
+static void get_symbols(int fd, Elf64_Shdr *sh_tab) {
+    for (int i = 0; i < eh.e_shnum; i++) {
+       if (sh_tab[i].sh_type == SHT_SYMTAB) {
+           iterate_symbol_table(fd, sh_tab, i);
+       }
+    }
+}
+
+void parse_elf(void) {
+   if (!elf_file) {
+       return;
+   }
+   int fd = open(elf_file, O_RDONLY);
+   Assert(fd != -1, "elf_file: %s open error", elf_file);
+
+   parse_elf_header(fd);
+
+   Elf64_Shdr sh[eh.e_shentsize * eh.e_shnum];
+   get_section_header(fd, sh);
+
+   get_symbols(fd, sh);
 }
 
 void init_monitor(int argc, char *argv[]) {
@@ -127,6 +205,8 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Initialize the simple debugger. */
   init_sdb();
+
+  parse_elf();
 
 #ifndef CONFIG_ISA_loongarch32r
   IFDEF(CONFIG_ITRACE, init_disasm(
