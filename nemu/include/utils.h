@@ -75,7 +75,14 @@ uint64_t get_time();
 
 // ----------- itrace -----------
 void trace_inst(vaddr_t pc, uint32_t inst);
-//void display_inst(vaddr_t pc);
 void display_inst();
+
+// ----------- mtrace -----------
+void display_pread(paddr_t addr, int len);
+void display_pwrite(paddr_t addr, int len, word_t data);
+
+
+// ----------- mtrace -----------
+
 
 #endif
