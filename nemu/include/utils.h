@@ -83,6 +83,16 @@ void display_pwrite(paddr_t addr, int len, word_t data);
 
 
 // ----------- mtrace -----------
+typedef struct ftrace_entry{
+    char name[32];  // 调用/返回的函数名
+    vaddr_t addr;   // 调用/返回的函数地址
+    unsigned char info;
+    word_t size;
+}ftrace_entry;
+void parse_elf(const char *elf_file);
+void ftrace_func_call(vaddr_t pc, vaddr_t target);
+//void ftrace_func_call (paddr_t pc, paddr_t target, bool is_tail);
+void ftrace_func_ret(vaddr_t pc);
 
 
 #endif

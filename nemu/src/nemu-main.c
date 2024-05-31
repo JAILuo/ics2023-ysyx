@@ -19,6 +19,7 @@ void init_monitor(int, char *[]);
 void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();
+extern ftrace_entry *ftrace_tab;
 
 int main(int argc, char *argv[]) {
   /* Initialize the monitor. */
@@ -31,5 +32,9 @@ int main(int argc, char *argv[]) {
   /* Start engine. */
   engine_start();
 
+   if (ftrace_tab != NULL) {
+    free(ftrace_tab);
+    ftrace_tab = NULL; // 重置指针，以防野指针问题
+} 
   return is_exit_status_bad();
 }
