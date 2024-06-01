@@ -7,7 +7,13 @@
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
 size_t strlen(const char *s) {
-  panic("Not implemented");
+    if (!s) return 0;
+
+    size_t len = 0;
+    while (*s != '\0') {
+        len++;
+    }
+    return len;
 }
 
 char *strcpy(char *dst, const char *src) {
@@ -74,7 +80,19 @@ void *memmove(void *dst, const void *src, size_t n) {
 }
 
 void *memcpy(void *out, const void *in, size_t n) {
-  panic("Not implemented");
+    // 确保out和in指向的内存地址不重叠
+    if ((char *)out < (char *)in || (char *)out >= (char *)in + n) {
+        // 没有重叠，直接复制
+        for (size_t i = 0; i < n; ++i) {
+            ((char *)out)[i] = ((char *)in)[i];
+        }
+    } else {
+        // 有重叠，从后向前复制以避免数据被覆盖
+        for (size_t i = n; i != 0; --i) {
+            ((char *)out)[i - 1] = ((char *)in)[i - 1];
+        }
+    }
+    return out;
 }
 
 int memcmp(const void *s1, const void *s2, size_t n) {

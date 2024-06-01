@@ -80,6 +80,29 @@ int ftrace_table_size = 0;
 
 int call_depth = 0;
 
+TailRecNode *tail_rec_head = NULL; // linklist with head, dynamic allocated
+
+static void init_tail_rec_list() {
+	tail_rec_head = (TailRecNode *)malloc(sizeof(TailRecNode));
+	tail_rec_head->pc = 0;
+	tail_rec_head->next = NULL;
+}
+
+static void insert_tail_rec(paddr_t pc, int depth) {
+	TailRecNode *node = (TailRecNode *)malloc(sizeof(TailRecNode));
+	node->pc = pc;
+	node->depth = depth;
+	node->next = tail_rec_head->next;
+	tail_rec_head->next = node;
+}
+
+static void remove_tail_rec() {
+	TailRecNode *node = tail_rec_head->next;
+	tail_rec_head->next = node->next;
+	free(node);
+}
+
+
 static void parse_elf_header(int fd, const char *elf_file) {
     Assert(lseek(fd, 0, SEEK_SET) == 0, "elf_file: %s lseek error.", elf_file);
     Assert(read(fd, (void *)&eh, sizeof(Elf32_Ehdr)) == sizeof(Elf32_Ehdr),
@@ -115,10 +138,8 @@ static void read_section(int fd, Elf32_Shdr sh, void *dst) {
 }
 
 static void iterate_symbol_table(int fd, Elf32_Shdr *sh_tab, int sym_index) {
-    // 从段表中读取符号表的内容,存到sym_tab
     Elf32_Sym sym_tab[sh_tab[sym_index].sh_size];
     int sym_num = sh_tab[sym_index].sh_size / sizeof(Elf32_Sym);
-    // 这64忘记改为32了，导致解析出来的符号个数错误
     read_section(fd, sh_tab[sym_index], sym_tab);
 
     int str_index = sh_tab[sym_index].sh_link;
@@ -136,11 +157,6 @@ static void iterate_symbol_table(int fd, Elf32_Shdr *sh_tab, int sym_index) {
         strncpy(ftrace_tab[i].name, str_tab + sym_tab[i].st_name, 31);
         ftrace_tab[i].name[31] = '\0';
 
-        // 有几个名字确实是读出来了。
-        printf("ftrace_tab[%d]:\n",i);
-        printf(FMT_WORD"\n", ftrace_tab[i].addr);
-        printf("name: %s\n", ftrace_tab[i].name);
-        printf("info: %c\n\n", ftrace_tab[i].info);
     }
 }
 static void get_symbols(int fd, Elf32_Shdr *sh_tab) {
@@ -157,18 +173,14 @@ int find_symbol_func(vaddr_t target, bool is_call) {
     for (; i < ftrace_table_size; i++) {
         //if (ftrace_tab[i].info == STT_FUNC) {
         if (ELF32_ST_TYPE(ftrace_tab[i].info) == STT_FUNC) {
-            // 如果我这里找到了对应传入的目标地址，那我返回真？
-            // 那要是返回指令呢？
-            // 这里还得进行判断是返回指令还是函数调用指令，加一个bool
             if (is_call) {
                 if (ftrace_tab[i].addr == target) break;
             } else {
-                //if (ftrace_tab[i].addr <= target) break;
                 if (ftrace_tab[i].addr <= target && target < ftrace_tab[i].addr + ftrace_tab[i].size) break;
             }
         }
     }
-    return i;
+    return i < ftrace_table_size ? i : -1;
 }
 
 void parse_elf(const char *elf_file) {
@@ -186,26 +198,26 @@ void parse_elf(const char *elf_file) {
    get_section_header(fd, sh);
 
    get_symbols(fd, sh);
+
+   init_tail_rec_list();
 }
 
-void ftrace_func_call(vaddr_t pc, vaddr_t target) {
+void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
     if (!ftrace_tab) return;
 
     call_depth++;
     
     int i = find_symbol_func(target, true); 
-    if (i < 0) {
-        printf("no func matched symbol find.\n");
-        return;
-    }
 
     printf(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
            pc,
            call_depth * 2, "",
-           ftrace_tab[i].name,
+           i >= 0 ? ftrace_tab[i].name : "???",
            target);
-    // 注意，我在main.c的最后进行了free处理，之后记得改
-    // 另外，在看各种call和ret指令的时候，包括保存返回地址和不保存返回地址。
+
+    if (is_tail) {
+		insert_tail_rec(pc, call_depth-1);
+    }
 }
 
 void ftrace_func_ret(vaddr_t pc) {
@@ -215,9 +227,17 @@ void ftrace_func_ret(vaddr_t pc) {
     printf(FMT_WORD ": %*sret [%s]\n",
            pc,
            call_depth * 2, "",
-           ftrace_tab[i].name);
+           i >=0 ? ftrace_tab[i].name : "???");
 
     call_depth--;
 
+    TailRecNode *node = tail_rec_head->next;
+	if (node != NULL) {
+		if (node->depth == call_depth) {
+			paddr_t ret_target = node->pc;
+			remove_tail_rec();
+			ftrace_func_ret(ret_target);
+		}
+	}
 }
 

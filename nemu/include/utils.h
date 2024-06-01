@@ -90,9 +90,14 @@ typedef struct ftrace_entry{
     word_t size;
 }ftrace_entry;
 void parse_elf(const char *elf_file);
-void ftrace_func_call(vaddr_t pc, vaddr_t target);
-//void ftrace_func_call (paddr_t pc, paddr_t target, bool is_tail);
+void ftrace_func_call (paddr_t pc, paddr_t target, bool is_tail);
 void ftrace_func_ret(vaddr_t pc);
+
+typedef struct tail_rec_node {
+    paddr_t pc;
+    int depth;
+    struct tail_rec_node *next;
+} TailRecNode;
 
 
 #endif

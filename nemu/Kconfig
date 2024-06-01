@@ -159,6 +159,14 @@ config MTRACE
     Enable memory tracer with a reference design.
     Note that this will significantly reduce the performance of NEMU.
 
+config FTRACE
+  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  bool "Enable function tracer"
+  default n
+  help
+    Enable function tracer with a reference design.
+    Note that this will significantly reduce the performance of NEMU.
+
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"

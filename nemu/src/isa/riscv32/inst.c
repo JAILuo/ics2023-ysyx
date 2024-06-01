@@ -153,19 +153,21 @@ static int decode_exec(Decode *s) {
 
   /* jump */
   INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, s->dnpc = s->pc + imm;
-          if (rd == 1) {
-            ftrace_func_call(s->pc, s->dnpc);
-          }
+          IFDEF(CONFIG_FTRACE, {
+            if (rd == 1) {
+              ftrace_func_call(s->pc, s->dnpc, false);
+            }});
           R(rd) = s->pc + 4);
   INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, s->dnpc = (src1 + imm) & ~(word_t)1;
-          if (s->isa.inst.val == 0x00008067) {
+          IFDEF(CONFIG_FTRACE, {
             // note the order of if and else if
-            ftrace_func_ret(s->pc);     // pseudoinstruction ret->jalr x0, 0(ra).
-          } else if (rd == 1) {
-            ftrace_func_call(s->pc, s->dnpc);   // normal call
-          } else if (rd == 0 && imm == 0) {
-            ftrace_func_call(s->pc, s->dnpc);   // jr rs
-          } 
+            if (s->isa.inst.val == 0x00008067) {
+              ftrace_func_ret(s->pc);     // pseudoinstruction ret->jalr x0, 0(ra).
+            } else if (rd == 1) {
+              ftrace_func_call(s->pc, s->dnpc, false);   // normal call
+            } else if (rd == 0 && imm == 0) {
+              ftrace_func_call(s->pc, s->dnpc, true);   // jr rs
+            }});
           R(rd) = s->pc + 4);
 
   /* jump and pc  */
