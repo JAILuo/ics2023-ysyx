@@ -1,18 +1,9 @@
-#include <float.h>
 #include <klib.h>
 #include <stdbool.h>
 #include <klib-macros.h>
 #include <stdarg.h>
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
-
-int printf(const char *fmt, ...) {
-  panic("Not implemented");
-}
-
-int vsprintf(char *out, const char *fmt, va_list ap) {
-  panic("Not implemented");
-}
 
 static void reverse(char *start, int len) {
     if (start && len > 0) {
@@ -51,6 +42,45 @@ int itoa(int n, char *out, int base) {
     return len;
 }
 
+int vsprintf(char *out, const char *fmt, va_list ap) {
+    assert(out);
+    assert(fmt);
+  char *start = out;
+  char *str = NULL;
+
+  for (; *fmt != '\0'; ++fmt) {
+    if (*fmt != '%') {
+      *out = *fmt;
+      ++out;
+    } else {
+      switch (*(++fmt)) {
+      case '%': *out = *fmt; ++out; break;
+      case 'd': out += itoa(va_arg(ap, int), out, 10); break;
+      case 's':
+        str = va_arg(ap, char*);
+        while (*str)
+            *out++ = *str++;
+        break;
+      }
+    }
+  }
+
+  *out = '\0';
+  return out - start;
+}
+
+int printf(const char *fmt, ...) {
+    char buf[256];
+    va_list args;
+    va_start(args, fmt);
+    int len = vsprintf(buf, fmt, args);
+    for (int i = 0; i < len; i++) {
+        putch(buf[i]);
+    }
+    va_end(args);
+    return 0; // 返回值通常为写入的字符数，这里简化处理
+}
+
 int sprintf(char *out, const char *fmt, ...) {
     assert(out);
     assert(fmt);
@@ -64,7 +94,7 @@ int sprintf(char *out, const char *fmt, ...) {
             *out++ = *fmt;
         } else {
             switch (*(++fmt)) {
-                case '%': *out = *fmt;out++; break;
+                case '%': *out = *fmt; out++; break;
                 case 'd':
                     out += itoa(va_arg(args, int), out, 10); break;
                 case 's':

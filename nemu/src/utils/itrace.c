@@ -1,3 +1,5 @@
+#include "device/map.h"
+#include "macro.h"
 #include "utils.h"
 #include <common.h>
 #include <isa.h>
@@ -35,6 +37,7 @@ void trace_inst(vaddr_t pc, uint32_t inst) {
     }
 }
 
+//IFDEF(CONFIG_ITRACE, {
 void display_inst() {    
     if (cur_inst == 0) {
         return;
@@ -59,6 +62,7 @@ void display_inst() {
         printf(ANSI_NONE);
     }
 }
+//})
 
 
 // ----------- mtrace -----------
@@ -121,14 +125,10 @@ static void get_section_header(int fd, Elf32_Shdr *sh_tab) {
     Assert(lseek(fd, eh.e_shoff, SEEK_SET) == eh.e_shoff,
                 "section header offset error.");
 
-    printf("%d\n", eh.e_shnum);
     for (int i = 0; i < eh.e_shnum; i++ ) {
         Assert(read(fd, (void*)&sh_tab[i], eh.e_shentsize) == eh.e_shentsize,
                     "section header size error.");
     }
-
-
-    // 一行行读到这段表中,应该说逐个section header读取
 }
 
 static void read_section(int fd, Elf32_Shdr sh, void *dst) {
@@ -148,7 +148,7 @@ static void iterate_symbol_table(int fd, Elf32_Shdr *sh_tab, int sym_index) {
 
     ftrace_tab = (ftrace_entry *)malloc(sym_num * sizeof(ftrace_entry));
     ftrace_table_size = sym_num;
-    printf("sym_num/ftrace_table_size: %d\n", ftrace_table_size);
+    //printf("sym_num/ftrace_table_size: %d\n", ftrace_table_size);
     for (int i = 0; i < ftrace_table_size; i++) {
         ftrace_tab[i].addr = sym_tab[i].st_value;
         ftrace_tab[i].info = sym_tab[i].st_info;
@@ -239,5 +239,16 @@ void ftrace_func_ret(vaddr_t pc) {
 			ftrace_func_ret(ret_target);
 		}
 	}
+}
+
+
+// ----------- dtrace -----------
+void trace_dread(paddr_t addr, int len, IOMap *map) {
+    printf("dtrace: read %10s at " FMT_WORD "%d\n", map->name, addr, len);
+}
+
+void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
+    printf("dtrace: write %10s at " FMT_WORD "%d with " FMT_WORD,
+           map->name, addr, len, data);
 }
 

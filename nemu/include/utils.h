@@ -100,4 +100,9 @@ typedef struct tail_rec_node {
 } TailRecNode;
 
 
+// ----------- dtrace -----------
+//void trace_dread(paddr_t addr, int len, IOMap *map);
+//void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map);
+
+
 #endif

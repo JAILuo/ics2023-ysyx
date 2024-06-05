@@ -13,6 +13,7 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include "macro.h"
 #include "utils.h"
 #include <cpu/cpu.h>
 #include <cpu/decode.h>
@@ -96,7 +97,7 @@ static void statistic() {
 }
 
 void assert_fail_msg() {
-  display_inst();
+  IFDEF(CONFIG_ITRACE, display_inst());
   isa_reg_display();
   statistic();
 }
@@ -129,8 +130,10 @@ void cpu_exec(uint64_t n) {
           nemu_state.halt_pc);
 
       if ((nemu_state.state == NEMU_ABORT) || (nemu_state.halt_ret)) {
-          display_inst();
-          isa_reg_display();
+          IFDEF(CONFIG_ITRACE, {
+                display_inst();
+                isa_reg_display();
+                });
       }
       // fall through
     case NEMU_QUIT: statistic();
