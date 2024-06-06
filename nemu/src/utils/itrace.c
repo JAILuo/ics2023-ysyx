@@ -37,7 +37,7 @@ void trace_inst(vaddr_t pc, uint32_t inst) {
     }
 }
 
-//IFDEF(CONFIG_ITRACE, {
+IFDEF(CONFIG_ITRACE, {
 void display_inst() {    
     if (cur_inst == 0) {
         return;
@@ -62,7 +62,7 @@ void display_inst() {
         printf(ANSI_NONE);
     }
 }
-//})
+})
 
 
 // ----------- mtrace -----------

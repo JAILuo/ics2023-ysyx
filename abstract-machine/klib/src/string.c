@@ -69,6 +69,7 @@ void *memset(void *s, int c, size_t n) {
     return s;
 }
 
+/*
 void *memcpy(void *out, const void *in, size_t n) {
     // 确保out和in指向的内存地址不重叠
     if ((char *)out < (char *)in || (char *)out >= (char *)in + n) {
@@ -84,37 +85,27 @@ void *memcpy(void *out, const void *in, size_t n) {
     }
     return out;
 }
-void *memmove(void *dst, const void *src, size_t n) {
-    // 检查dst和src是否重叠
-    if ((src < dst && (char *)src + n <= (char *)dst) ||
-        (dst < src && (char *)dst + n <= (char *)src)) {
-        // 没有重叠，或者从dst到src的移动，直接复制
-        return memcpy(dst, src, n);
-    } else {
-        // 有重叠，需要从后向前复制
-        const char *s = (const char *)src + n - 1;
-        char *d = (char *)dst + n - 1;
-        for (size_t i = 0; i < n; ++i) {
-            *d-- = *s--;
-        }
-    }
-    return dst;
-    //panic("no implemented");
-}
-
-/*
-void *memmove(void *dest, const void *src, size_t n) {
-    // 分配临时数组
-    unsigned char temp[256]; 
-    // 复制数据到临时数组
-    memcpy(temp, src, n);
-
-    // 复制数据从临时数组到目标地址
-    memcpy(dest, temp, n);
-
-    return dest;
-}
 */
+
+void *memcpy(void *out,const void *in,size_t size) {
+    char *pin;  //源地址
+    char *pout;  //目标地址
+
+    if(NULL == out || NULL == in)
+    {
+        return NULL;                                                                                                                
+    }
+        pin = (char *)in;                                                      
+        pout = (char *)out;                                                    
+        for (int i = 0; i < size; i++)
+            pout[i] = pin[i];
+    return pout;                                                                
+}      
+
+void *memmove(void *dst, const void *src, size_t n) {
+    return memcpy(dst, src, n);
+    //panic("memmove no implemented");
+}
 
 int memcmp(const void *s1, const void *s2, size_t n) {
     const unsigned char *str1 = (const unsigned char *)s1;
