@@ -69,8 +69,8 @@ void *memset(void *s, int c, size_t n) {
     return s;
 }
 
-/*
 void *memcpy(void *out, const void *in, size_t n) {
+    if (!out || !in) return NULL;
     // 确保out和in指向的内存地址不重叠
     if ((char *)out < (char *)in || (char *)out >= (char *)in + n) {
         // 没有重叠，直接复制
@@ -85,22 +85,6 @@ void *memcpy(void *out, const void *in, size_t n) {
     }
     return out;
 }
-*/
-
-void *memcpy(void *out,const void *in,size_t size) {
-    char *pin;  //源地址
-    char *pout;  //目标地址
-
-    if(NULL == out || NULL == in)
-    {
-        return NULL;                                                                                                                
-    }
-        pin = (char *)in;                                                      
-        pout = (char *)out;                                                    
-        for (int i = 0; i < size; i++)
-            pout[i] = pin[i];
-    return pout;                                                                
-}      
 
 void *memmove(void *dst, const void *src, size_t n) {
     return memcpy(dst, src, n);
