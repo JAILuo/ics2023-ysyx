@@ -1,6 +1,6 @@
-#include "device/map.h"
-#include "macro.h"
-#include "utils.h"
+#include <device/map.h>
+#include <macro.h>
+#include <utils.h>
 #include <common.h>
 #include <isa.h>
 #include <stdbool.h>
@@ -243,6 +243,7 @@ void ftrace_func_ret(vaddr_t pc) {
 
 
 // ----------- dtrace -----------
+/*
 void trace_dread(paddr_t addr, int len, IOMap *map) {
     printf("dtrace: read %10s at " FMT_WORD "%d\n", map->name, addr, len);
 }
@@ -251,4 +252,4 @@ void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
     printf("dtrace: write %10s at " FMT_WORD "%d with " FMT_WORD,
            map->name, addr, len, data);
 }
-
+*/
