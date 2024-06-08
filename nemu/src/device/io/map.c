@@ -52,13 +52,22 @@ void init_map() {
   p_space = io_space;
 }
 
+void trace_dread(paddr_t addr, int len, IOMap *map) {                                                
+    printf("dtrace: read %10s at " FMT_WORD "%d\n", map->name, addr, len);
+}
+
+void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
+    printf("dtrace: write %10s at " FMT_WORD "%d with " FMT_WORD "\n",
+           map->name, addr, len, data);
+}
+
 word_t map_read(paddr_t addr, int len, IOMap *map) {
   assert(len >= 1 && len <= 8);
   check_bound(map, addr);
   paddr_t offset = addr - map->low;
   invoke_callback(map->callback, offset, len, false); // prepare data to read
   word_t ret = host_read(map->space + offset, len);
-  //trace_dread(addr, len, map);
+  IFDEF(CONFIG_DTRACE, trace_dread(addr, len, map));
   return ret;
 }
 
@@ -68,5 +77,6 @@ void map_write(paddr_t addr, int len, word_t data, IOMap *map) {
   paddr_t offset = addr - map->low;
   host_write(map->space + offset, len, data);
   invoke_callback(map->callback, offset, len, true);
-  //trace_dwrite(addr, len, addr, map);
+  IFDEF(CONFIG_DTRACE, trace_dwrite(addr, len, addr, map));
 }
+

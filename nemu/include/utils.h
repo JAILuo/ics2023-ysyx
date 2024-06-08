@@ -82,7 +82,6 @@ void display_inst();
 void display_pread(paddr_t addr, int len);
 void display_pwrite(paddr_t addr, int len, word_t data);
 
-
 // ----------- mtrace -----------
 typedef struct ftrace_entry{
     char name[32];  // 调用/返回的函数名

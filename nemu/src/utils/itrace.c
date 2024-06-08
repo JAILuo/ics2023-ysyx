@@ -1,5 +1,5 @@
-#include <device/map.h>
 #include <macro.h>
+#include <device/map.h>
 #include <utils.h>
 #include <common.h>
 #include <isa.h>
@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <device/map.h>
 
 
 // ----------- itrace -----------
@@ -37,7 +38,7 @@ void trace_inst(vaddr_t pc, uint32_t inst) {
     }
 }
 
-IFDEF(CONFIG_ITRACE, {
+//IFDEF(CONFIG_ITRACE, {
 void display_inst() {    
     if (cur_inst == 0) {
         return;
@@ -62,7 +63,7 @@ void display_inst() {
         printf(ANSI_NONE);
     }
 }
-})
+//})
 
 
 // ----------- mtrace -----------
