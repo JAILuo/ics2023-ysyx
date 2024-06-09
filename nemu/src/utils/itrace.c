@@ -79,6 +79,15 @@ void display_pwrite(paddr_t addr, int len, word_t data) {
 
 
 // ----------- ftrace -----------
+typedef MUXDEF(CONFIG_ISA64, Elf64_Ehdr, Elf32_Ehdr) Elf_Ehdr;
+typedef MUXDEF(CONFIG_ISA64, Elf64_Phdr, Elf32_Phdr) Elf_Phdr;
+typedef MUXDEF(CONFIG_ISA64, Elf64_Shdr, Elf32_Shdr) Elf_Shdr;
+typedef MUXDEF(CONFIG_ISA64, Elf64_Sym , Elf64_Sym) Elf_Sym;
+typedef MUXDEF(CONFIG_ISA64, Elf64_Rel , Elf32_Rel) Elf_Rel;
+typedef MUXDEF(CONFIG_ISA64, Elf64_Rela , Elf32_Rela) Elf_Rela;
+typedef MUXDEF(CONFIG_ISA64, Elf64_Dyn, Elf32_Dyn) Elf_Dyn;
+typedef MUXDEF(CONFIG_ISA64, Elf64_Nhdr, Elf32_Nhdr) Elf_Nhdr;
+
 static Elf32_Ehdr eh;
 ftrace_entry *ftrace_tab = NULL;
 int ftrace_table_size = 0;
