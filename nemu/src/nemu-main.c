@@ -34,13 +34,13 @@ int main(int argc, char *argv[]) {
   /* Start engine. */
   engine_start();
 
-   if (ftrace_tab != NULL) {
+  if (ftrace_tab != NULL) {
     free(ftrace_tab);
     ftrace_tab = NULL; // 重置指针，以防野指针问题
-    } 
-   if (tail_rec_head != NULL) {
-       free(tail_rec_head);
-       tail_rec_head = NULL;
-   }
+  } 
+  if (tail_rec_head != NULL) {
+    free(tail_rec_head);
+    tail_rec_head = NULL;
+  }
   return is_exit_status_bad();
 }

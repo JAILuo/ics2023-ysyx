@@ -3,8 +3,8 @@
 #include <klib-macros.h>
 #include <stdbool.h>
 
-//static char *start_addr = NULL;
-//static bool is_init = false;
+static char *start_addr = NULL;
+static bool is_init = false;
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 static unsigned long int next = 1;

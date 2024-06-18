@@ -115,6 +115,10 @@ static void remove_tail_rec() {
 	tail_rec_head->next = node->next;
 	free(node);
 }
+/* 
+ * the tail of recusive optimization code above comes from Internet
+ * TODO: in the future.
+ **/
 
 
 static void parse_elf_header(int fd, const char *elf_file) {
@@ -123,14 +127,14 @@ static void parse_elf_header(int fd, const char *elf_file) {
                 "elf_file: %s lseek error.", elf_file);
  
     // 结束符号怎么表示？
-    if (strncmp((const char *)eh.e_ident, "\177ELF", 4) != 0) {
+    if (strncmp((const char *)eh.e_ident, "\177ELF", 4) != 0)
         panic("elf_file format error");
-    }
 }
 
 static void get_section_header(int fd, Elf32_Shdr *sh_tab) {
     //printf("e_shoff:%d\n", eh.e_shoff);
     //printf("e_ehsize:%u\n", eh.e_ehsize);
+    /* didn't notice the bit of ELf  */
     lseek(fd, eh.e_shoff, SEEK_SET);
     Assert(lseek(fd, eh.e_shoff, SEEK_SET) == eh.e_shoff,
                 "section header offset error.");
@@ -148,14 +152,18 @@ static void read_section(int fd, Elf32_Shdr sh, void *dst) {
 }
 
 static void iterate_symbol_table(int fd, Elf32_Shdr *sh_tab, int sym_index) {
+    /* symbol table data */
     Elf32_Sym sym_tab[sh_tab[sym_index].sh_size];
     int sym_num = sh_tab[sym_index].sh_size / sizeof(Elf32_Sym);
     read_section(fd, sh_tab[sym_index], sym_tab);
 
+    /* string table data:  */
     int str_index = sh_tab[sym_index].sh_link;
     char str_tab[sh_tab[str_index].sh_size];
     read_section(fd, sh_tab[str_index], str_tab);
 
+    /* store the ftrace */
+    /* optimize: just store type that is FUNC. */
     ftrace_tab = (ftrace_entry *)malloc(sym_num * sizeof(ftrace_entry));
     ftrace_table_size = sym_num;
     //printf("sym_num/ftrace_table_size: %d\n", ftrace_table_size);
@@ -166,7 +174,6 @@ static void iterate_symbol_table(int fd, Elf32_Shdr *sh_tab, int sym_index) {
         memset(ftrace_tab[i].name, '\0', 32);
         strncpy(ftrace_tab[i].name, str_tab + sym_tab[i].st_name, 31);
         ftrace_tab[i].name[31] = '\0';
-
     }
 }
 static void get_symbols(int fd, Elf32_Shdr *sh_tab) {

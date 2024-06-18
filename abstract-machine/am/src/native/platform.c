@@ -170,6 +170,7 @@ static void init_platform() {
   setbuf(stdout, NULL);
 
   const char *args = getenv("mainargs");
+  printf("enviroment: %s\n", args);
   halt(main(args ? args : "")); // call main here!
 }
 

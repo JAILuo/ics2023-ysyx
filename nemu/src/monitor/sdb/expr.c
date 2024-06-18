@@ -157,17 +157,21 @@ static bool make_token(char *e) {
   return true;
 }
 
-/* Add other token types that require str and num_value */
+/* Add other token types that require str and num_value in future. */
 #define NEEDS_STRING(type) ((type) == TK_NUM || (type) == TK_REG_NAME)
+
+/* TODO: allocate memory when we need a string */
+
 static int add_token(char *substr_start, int substr_len, int i) {
+    // skip the space.
     if (rules[i].token_type == TK_NOTYPE) {
         return i;
     }
     tokens[nr_token].type = rules[i].token_type;
     tokens[nr_token].num_value = 0; // 初始化数值
 
+    // copy the string when this token needs string to store.
     if (NEEDS_STRING(rules[i].token_type)) {
-        // 如果token类型需要字符串，则复制它
         if (substr_len > sizeof(tokens[nr_token].str) - 1) {
             substr_len = sizeof(tokens[nr_token].str) - 1;
         }
@@ -223,11 +227,11 @@ static int get_priority(int op_type) {
         case TK_LOGICAL_AND:case TK_LOGICAL_OR:
             return 5;
         default:return -1;
-  }
+    }
 }
 
 /**
- * find main operator
+ * Find main operator
  *
  * @note 非运算符的token不是主运算符.
  * @note 出现在一对括号中的token不是主运算符
@@ -299,7 +303,8 @@ static word_t compute(int op_type, int val1, int val2) {
     }
 }
 
-/* Single token.
+/**
+ * Single token.
  * For now this token should be a number.
  * Return the value of the number.
  */
@@ -356,17 +361,17 @@ word_t eval(int p, int q) {
  * Check and convert the negative mark. 
  */
 static void is_neg(void) {
-  for (int i = 0; i < nr_token; i++) {
-    if (tokens[i].type == TK_SUB) {
-      if ((i == 0)
-          || (tokens[i - 1].type != TK_NUM
-              && tokens[i - 1]. type != TK_RIGHT_PAR
-              && tokens[i - 1].type != TK_REG_NAME
-              && tokens[i + 1].type == TK_NUM)) {
-        tokens[i].type = TK_NEG;
-      }
+    for (int i = 0; i < nr_token; i++) {
+        if (tokens[i].type == TK_SUB) {
+            if ((i == 0)
+                || (tokens[i - 1].type != TK_NUM
+                    && tokens[i - 1]. type != TK_RIGHT_PAR
+                    && tokens[i - 1].type != TK_REG_NAME
+                    && tokens[i + 1].type == TK_NUM)) {
+                tokens[i].type = TK_NEG;
+            }
+        }
     }
-  }
 }
 
 /**
@@ -374,11 +379,11 @@ static void is_neg(void) {
  * 为新元素腾出空间
  */
 static void shift_left(int start, int count) {
-  for (int j = start; j < nr_token; ++j) {
-    tokens[j - count] = tokens[j];
-  }
-  memset(&tokens[nr_token - 1], 0, sizeof(tokens[nr_token - 1]));
-  nr_token -= count;
+    for (int j = start; j < nr_token; ++j) {
+        tokens[j - count] = tokens[j];
+    }
+    memset(&tokens[nr_token - 1], 0, sizeof(tokens[nr_token - 1]));
+    nr_token -= count;
 }
 
 /**
@@ -405,10 +410,11 @@ static int handle_neg(int i) {
 }
 
 static bool hex_judge(int i) {
-    if (tokens[i].type != TK_NUM) {
-        return false;;
-    }
-    if (tokens[i].str[0] == '0' && (tokens[i].str[1] == 'x' || tokens[i].str[1] == 'X')) {
+    if (tokens[i].type != TK_NUM)
+        return false;
+
+    if (tokens[i].str[0] == '0'
+        && (tokens[i].str[1] == 'x' || tokens[i].str[1] == 'X')) {
         return true;
     }
     return false;
@@ -429,6 +435,7 @@ static void dec_reader(int i) {
         exit(EXIT_FAILURE);
     }
 }
+
 /**
  * numbers in string(expressions) --> numbers
  */
@@ -440,9 +447,8 @@ static void str2num(int p, int q) {
             dec_reader(i);
         }
 
-        if (tokens[i].type == TK_NEG) {
+        if (tokens[i].type == TK_NEG)
             i = handle_neg(i);
-        }
     }
 }
 
@@ -475,6 +481,7 @@ static void handle_pointer(int p, int q) {
     }
 }
 
+/* TODO: maybe we can merge the is_xx or (str2num and handle_pointer) */
 static void tokens_pre_processing(void) {
     is_neg();
     is_deref();

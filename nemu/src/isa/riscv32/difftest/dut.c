@@ -22,11 +22,13 @@ bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
     int i = 0;
     bool flag = true;
     if (ref_r->pc != cpu.pc) {
-        return false;
+        printf("dut_pc" FMT_WORD "  ref->pc:" FMT_WORD "\n", cpu.pc, ref_r->pc);
+        flag = false;
     }
     for (i = 0; i < reg_num; i++) {
         if (ref_r->gpr[i] != cpu.gpr[i]) {
-            printf("2.now reg is %s, ref_r->gpr:%u, but dut_gpr:%u\n",
+            printf("ref-reg: %s\n"
+                   "dut->gpr:%u  ref->gpr:%u\n",
                    regs[i], ref_r->gpr[i],cpu.gpr[i]);
             return false;
         }

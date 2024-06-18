@@ -40,6 +40,10 @@ static WP wp_pool[NR_WP] = {};
 static WP *head = NULL, *free_ = NULL;
 static int next_no = 0;
 
+/**
+ * benefits of using pool?
+ * why pool, not list->heap?
+ */
 void init_wp_pool() {
   int i;
   for (i = 0; i < NR_WP; i ++) {
@@ -67,13 +71,13 @@ static WP* new_wp() {
 }
 
 static WP *find_prev_wp(int no) {
-  WP *cur = head;
-  WP *prev = NULL;
-  while (cur != NULL && cur->NO != no) {
-    prev = cur;
-    cur = cur->next;
-  }
-  return prev;
+    WP *cur = head;
+    WP *prev = NULL;
+    while (cur != NULL && cur->NO != no) {
+        prev = cur;
+        cur = cur->next;
+    }
+    return prev;
 }
 
 static void free_wp(WP *wp) {
@@ -105,7 +109,6 @@ void watch_wp(char *expr, int result) {
 }
 
 void delete_wp(int no) {
-    // 传入要删除的监视点的序号
     if (no < 0 || no >= NR_WP) {
         printf("Watchpoint number out of range.\n");
         return;
