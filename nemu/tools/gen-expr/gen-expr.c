@@ -88,35 +88,35 @@ bool is_last_leftparens(void) {
 
 static void gen_rand_expr() {
     switch (choose(3)) {
-        case 0:
-            if (buf_index < MAX_EXPR_LENGTH) {
-                if (!is_last_leftparens()) {
-                    gen_num();
-                } else {
-                    gen_rand_expr();
-                }
-            }
-            break;
-        case 1:
-            if (buf_index < MAX_EXPR_LENGTH) {
-                if (buf[0] != '\0' && is_last_operator()) {
-                    gen('(');
-                    gen_rand_expr();
-                    gen(')');
-                } else {
-                    gen_rand_expr();
-                }
-            }
-            break;
-        default:
-            if (buf_index < MAX_EXPR_LENGTH) {
-                gen_rand_expr();
-                if (!is_last_operator()) {
-                    gen_rand_op();
-                }
+    case 0:
+        if (buf_index < MAX_EXPR_LENGTH) {
+            if (!is_last_leftparens()) {
+                gen_num();
+            } else {
                 gen_rand_expr();
             }
-            break;
+        }
+        break;
+    case 1:
+        if (buf_index < MAX_EXPR_LENGTH) {
+            if (buf[0] != '\0' && is_last_operator()) {
+                gen('(');
+                gen_rand_expr();
+                gen(')');
+            } else {
+                gen_rand_expr();
+            }
+        }
+        break;
+    default:
+        if (buf_index < MAX_EXPR_LENGTH) {
+            gen_rand_expr();
+            if (!is_last_operator()) {
+                gen_rand_op();
+            }
+            gen_rand_expr();
+        }
+        break;
     }
 }
 // 确保 buf 以空字符结尾
