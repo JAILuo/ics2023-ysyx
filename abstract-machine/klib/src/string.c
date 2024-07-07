@@ -10,7 +10,7 @@ size_t strlen(const char *s) {
     if (!s) return 0;
 
     size_t len = 0;
-    while (*s != '\0') {
+    while (*s++ != '\0') {
         len++;
     }
     return len;
@@ -31,20 +31,17 @@ char *strncpy(char *dst, const char *src, size_t n) {
         dst[i] = '\0';
 
    return dst;
-}
+} 
 
 char *strcat(char *dst, const char *src) {
     char *end = dst;
-    while (*end) {
+    while (*end)
         end++;
-    }
 
-    while (*src) {
+    while (*src)
         *end++ = *src++;
-    }
 
     *end = '\0';
-
     return dst;
 }
 
@@ -91,6 +88,8 @@ void *memmove(void *dst, const void *src, size_t n) {
     //panic("memmove no implemented");
 }
 
+// bug?: it should compare all type, but not only string.
+// but I think deal with like thar is ok.
 int memcmp(const void *s1, const void *s2, size_t n) {
     const unsigned char *str1 = (const unsigned char *)s1;
     const unsigned char *str2 = (const unsigned char *)s2;

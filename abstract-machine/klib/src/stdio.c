@@ -2,43 +2,52 @@
 #include <stdbool.h>
 #include <klib-macros.h>
 #include <stdarg.h>
+#include <limits.h>
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
+/*
 static void reverse(char *start, int len) {
-    if (start && len > 0) {
-        char *end = start + len - 1;
-        while (start < end) {
-            char temp = *start;
-            *start = *end;
-            *end = temp;
-
-            start++;
-            end--;
-        }
+    char *end = start + len - 1;
+    while (start < end) {
+        char temp = *start;
+        *start = *end;
+        *end = temp;
+        start++;
+        end--;
     }
 }
+*/
 
-int itoa(int n, char *out, int base) { 
-    assert(out);
+int itoa(int n, char *out, int base) {
+    assert(out && base >= 2 && base <= 36);
+    if (n == INT_MIN) {
+        // INT_MIN is a special case, needs special handling
+        strcpy(out, "-2147483648");
+        return 11;
+    }
+
     int len = 0;
-    bool is_neg = false;
+    bool is_neg = n < 0;
     if (is_neg) {
         n = -n;
     }
+    char buffer[33]; // Enough for 32-bit int base 2 to base 36
+    char *ptr = &buffer[sizeof(buffer) - 1];
+    *ptr = '\0';
+
     do {
         int digit = n % base;
-        *out++ = (digit < 10) ? '0' + digit : 'a' + (digit - 10);
+        *--ptr = (digit < 10) ? '0' + digit : 'a' + (digit - 10);
         len++;
-    } while ((n /= base) > 0);
+    } while ((n /= base) != 0);
 
     if (is_neg) {
-        *out = '-';
+        *--ptr = '-';
         len++;
     }
-    *out = '\0';
-    reverse(out - len, len);
 
+    strcpy(out, ptr);
     return len;
 }
 
@@ -94,15 +103,15 @@ int sprintf(char *out, const char *fmt, ...) {
             *out++ = *fmt;
         } else {
             switch (*(++fmt)) {
-                case '%': *out = *fmt; out++; break;
-                case 'd':
-                    out += itoa(va_arg(args, int), out, 10); break;
-                case 's':
-                    str = va_arg(args, char*);
-                    while (*str)
-                        *out++ = *str++;
-                    break;
-                default: *out++ = *fmt; break;
+            case '%': *out = *fmt; out++; break;
+            case 'd':
+                out += itoa(va_arg(args, int), out, 10); break;
+            case 's':
+                str = va_arg(args, char*);
+                while (*str)
+                    *out++ = *str++;
+                break;
+            default: *out++ = *fmt; break;
             }
         }
     }

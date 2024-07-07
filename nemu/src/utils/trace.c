@@ -78,7 +78,8 @@ void display_pwrite(paddr_t addr, int len, word_t data) {
 }
 
 
-// ----------- ftrace -----------
+// ----------- parse_elf -----------
+/*
 typedef MUXDEF(CONFIG_ISA64, Elf64_Ehdr, Elf32_Ehdr) Elf_Ehdr;
 typedef MUXDEF(CONFIG_ISA64, Elf64_Phdr, Elf32_Phdr) Elf_Phdr;
 typedef MUXDEF(CONFIG_ISA64, Elf64_Shdr, Elf32_Shdr) Elf_Shdr;
@@ -87,6 +88,7 @@ typedef MUXDEF(CONFIG_ISA64, Elf64_Rel , Elf32_Rel) Elf_Rel;
 typedef MUXDEF(CONFIG_ISA64, Elf64_Rela , Elf32_Rela) Elf_Rela;
 typedef MUXDEF(CONFIG_ISA64, Elf64_Dyn, Elf32_Dyn) Elf_Dyn;
 typedef MUXDEF(CONFIG_ISA64, Elf64_Nhdr, Elf32_Nhdr) Elf_Nhdr;
+*/
 
 static Elf32_Ehdr eh;
 ftrace_entry *ftrace_tab = NULL;
@@ -94,6 +96,7 @@ int ftrace_table_size = 0;
 
 int call_depth = 0;
 
+/*
 TailRecNode *tail_rec_head = NULL; // linklist with head, dynamic allocated
 
 static void init_tail_rec_list() {
@@ -115,6 +118,7 @@ static void remove_tail_rec() {
 	tail_rec_head->next = node->next;
 	free(node);
 }
+*/
 /* 
  * the tail of recusive optimization code above comes from Internet
  * TODO: in the future.
@@ -163,10 +167,10 @@ static void iterate_symbol_table(int fd, Elf32_Shdr *sh_tab, int sym_index) {
     read_section(fd, sh_tab[str_index], str_tab);
 
     /* store the ftrace */
-    /* optimize: just store type that is FUNC. */
+    /* future optimize: just store type that is FUNC. */
     ftrace_tab = (ftrace_entry *)malloc(sym_num * sizeof(ftrace_entry));
     ftrace_table_size = sym_num;
-    //printf("sym_num/ftrace_table_size: %d\n", ftrace_table_size);
+    // printf("sym_num or ftrace_table_size: %d\n", ftrace_table_size);
     for (int i = 0; i < ftrace_table_size; i++) {
         ftrace_tab[i].addr = sym_tab[i].st_value;
         ftrace_tab[i].info = sym_tab[i].st_info;
@@ -193,7 +197,8 @@ int find_symbol_func(vaddr_t target, bool is_call) {
             if (is_call) {
                 if (ftrace_tab[i].addr == target) break;
             } else {
-                if (ftrace_tab[i].addr <= target && target < ftrace_tab[i].addr + ftrace_tab[i].size) break;
+                if (ftrace_tab[i].addr <= target
+                    && target < ftrace_tab[i].addr + ftrace_tab[i].size) break;
             }
         }
     }
@@ -216,25 +221,29 @@ void parse_elf(const char *elf_file) {
 
    get_symbols(fd, sh);
 
-   init_tail_rec_list();
+   //init_tail_rec_list();
+
+   close(fd);
 }
 
+// ----------- ftrace -----------
 void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
     if (!ftrace_tab) return;
 
     call_depth++;
     
     int i = find_symbol_func(target, true); 
-
     printf(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
            pc,
            call_depth * 2, "",
            i >= 0 ? ftrace_tab[i].name : "???",
            target);
 
+    /*
     if (is_tail) {
 		insert_tail_rec(pc, call_depth-1);
     }
+    */
 }
 
 void ftrace_func_ret(vaddr_t pc) {
@@ -248,6 +257,7 @@ void ftrace_func_ret(vaddr_t pc) {
 
     call_depth--;
 
+    /*
     TailRecNode *node = tail_rec_head->next;
 	if (node != NULL) {
 		if (node->depth == call_depth) {
@@ -256,6 +266,7 @@ void ftrace_func_ret(vaddr_t pc) {
 			ftrace_func_ret(ret_target);
 		}
 	}
+    */
 }
 
 

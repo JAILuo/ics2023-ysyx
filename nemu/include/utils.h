@@ -93,12 +93,13 @@ void parse_elf(const char *elf_file);
 void ftrace_func_call (paddr_t pc, paddr_t target, bool is_tail);
 void ftrace_func_ret(vaddr_t pc);
 
+/*
 typedef struct tail_rec_node {
     paddr_t pc;
     int depth;
     struct tail_rec_node *next;
 } TailRecNode;
-
+*/
 
 // ----------- dtrace -----------
 //void trace_dread(paddr_t addr, int len, IOMap *map);

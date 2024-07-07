@@ -3,6 +3,7 @@
 #include <klib-macros.h>
 #include <stdbool.h>
 
+// riscv32-nemu use: maybe i can use marco the test.
 static char *start_addr = NULL;
 static bool is_init = false;
 

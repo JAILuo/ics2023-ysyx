@@ -153,18 +153,20 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 111 ????? 11000 11", bgeu   , B, if (src1 >= src2) s->dnpc = s->pc + imm);
 
   /* jump */
-  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, R(rd) = s->pc + 4,
+  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, s->dnpc = s->pc + imm;
           IFDEF(CONFIG_FTRACE, {
-            if (rd == 1) {
+            // jal label: jal ra offest
+            // jump label, store the function return address in ra
+            if (rd == 1) { 
               ftrace_func_call(s->pc, s->dnpc, false);
             }})
-          s->dnpc = s->pc + imm);
+          R(rd) = s->pc + 4);
   INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, volatile vaddr_t t = s->pc + 4;
           s->dnpc = (src1 + imm) & ~(word_t)1;
           IFDEF(CONFIG_FTRACE, {
-            // note the order of if and else if
+            // note the order of if and else if.
             if (s->isa.inst.val == 0x00008067) {
-              ftrace_func_ret(s->pc);     // pseudoinstruction ret->jalr x0, 0(ra).
+              ftrace_func_ret(s->pc);     // ret: jalr x0, 0(ra)
             } else if (rd == 1) {
               ftrace_func_call(s->pc, s->dnpc, false);   // normal call
             } else if (rd == 0 && imm == 0) {
@@ -172,7 +174,7 @@ static int decode_exec(Decode *s) {
             }});
           R(rd) = t);
 
-  /* jump and pc  */
+  /* jump and pc */
   INSTPAT("??????? ????? ????? ??? ????? 01101 11", lui    , U, R(rd) = imm);
   INSTPAT("??????? ????? ????? ??? ????? 00101 11", auipc  , U, R(rd) = s->pc + imm);
 
