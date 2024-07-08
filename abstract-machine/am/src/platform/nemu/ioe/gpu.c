@@ -18,6 +18,7 @@ void __am_gpu_init() {
 
 void __am_gpu_config(AM_GPU_CONFIG_T *cfg) {
     /* read nemu/src/device/vga.c */
+    /* the size of screen register */
     uint32_t screen_data = inl(VGACTL_ADDR);
     uint32_t h = screen_data & 0xffff; 
     uint32_t w = screen_data >> 16;

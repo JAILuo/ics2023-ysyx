@@ -16,7 +16,7 @@
 #ifndef __DEBUG_H__
 #define __DEBUG_H__
 
-#include <common.h>
+//#include <common.h>
 #include <stdio.h>
 #include <utils.h>
 
@@ -39,5 +39,7 @@
 #define panic(format, ...) Assert(0, format, ## __VA_ARGS__)
 
 #define TODO() panic("please implement me")
+
+//volatile static int dummy = 0;
 
 #endif

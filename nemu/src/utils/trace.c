@@ -235,7 +235,7 @@ void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
     int i = find_symbol_func(target, true); 
     printf(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
            pc,
-           call_depth * 2, "",
+           (call_depth * 2)%40, " ",
            i >= 0 ? ftrace_tab[i].name : "???",
            target);
 
@@ -252,7 +252,7 @@ void ftrace_func_ret(vaddr_t pc) {
     int i = find_symbol_func(pc, false);
     printf(FMT_WORD ": %*sret [%s]\n",
            pc,
-           call_depth * 2, "",
+           (call_depth * 2)%40, " ",
            i >=0 ? ftrace_tab[i].name : "???");
 
     call_depth--;

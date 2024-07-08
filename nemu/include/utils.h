@@ -18,6 +18,7 @@
 
 #include <common.h>
 #include <device/map.h>
+#include <debug.h>
 
 // ----------- state -----------
 
