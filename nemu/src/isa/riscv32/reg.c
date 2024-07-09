@@ -65,9 +65,9 @@ vaddr_t *csr_reg(word_t imm) {
     case 0x300: return &(cpu.csr.mstatus);
     case 0x305: return &(cpu.csr.mtvec);
     case 0x341: return &(cpu.csr.mepc);
-    case 0x342: return &(cpu.csr.mcasuse);
+    case 0x342: return &(cpu.csr.mcause);
     default: 
-        panic("unkwon csr.\n" "mstauts, mtvec, mepc, mcasuse\n");
+        panic("unkwon csr.\n" "mstauts, mtvec, mepc, mcause\n");
     } 
 }
 

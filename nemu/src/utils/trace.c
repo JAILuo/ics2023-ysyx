@@ -281,3 +281,12 @@ void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
            map->name, addr, len, data);
 }
 */
+
+// ----------- dtrace -----------
+void etrace_log() {
+    printf("exception NO: %d\n"
+           "epc: %x\n", cpu.csr.mcause, cpu.csr.mepc);
+}
+
+
+

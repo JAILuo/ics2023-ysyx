@@ -175,6 +175,14 @@ config DTRACE
     Enable devices tracer with a reference design.
     Note that this will significantly reduce the performance of NEMU.
 
+config ETRACE
+  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  bool "Enable exception tracer"
+  default n
+  help
+    Enable exception tracer with a reference design.
+    Note that this will significantly reduce the performance of NEMU.
+
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"

@@ -107,4 +107,7 @@ typedef struct tail_rec_node {
 //void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map);
 
 
+// ----------- etrace ----------- 
+void etrace_log();
+
 #endif

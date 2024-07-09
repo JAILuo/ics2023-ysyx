@@ -198,7 +198,8 @@ static int decode_exec(Decode *s) {
           CSRs(imm) = src1; R(rd) = t);
   INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, volatile vaddr_t t = CSRs(imm);
           CSRs(imm) = t | src1; R(rd) = t);
-  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc));
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc); 
+          IFDEF(CONFIG_ETRACE,etrace_log();));
   INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , I, MRET);
   
 

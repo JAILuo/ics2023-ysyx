@@ -133,7 +133,7 @@ void cpu_exec(uint64_t n) {
       if ((nemu_state.state == NEMU_ABORT) || (nemu_state.halt_ret)) {
           IFDEF(CONFIG_ITRACE, {
                 display_inst();
-                isa_reg_display();
+                //isa_reg_display();
                 });
       }
       // fall through
