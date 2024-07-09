@@ -33,7 +33,18 @@ enum {
   TYPE_N, // none
 };
 
-#define ECALL(dnpc) {bool success; dnpc = (isa_raise_intr(isa_reg_str2val("a7", &success), s->pc));}
+#define ECALL(dnpc) {\
+    bool success; \
+    dnpc = (isa_raise_intr(isa_reg_str2val("a7", &success), s->pc)); \
+}
+
+#define MRET { \
+    cpu.csr.mstatus &= ~(1<<3); \
+    cpu.csr.mstatus |= ((cpu.csr.mstatus & (1 << 7)) >> 4); \
+    cpu.csr.mstatus &= ~((1<<11)+(1<<12)); \
+    cpu.csr.mstatus |= (1<<7); \
+    s->dnpc = cpu.csr.mepc; \
+}
 
 /** 
  * you may forget add sext for your instruction
@@ -183,9 +194,13 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   
   /* CSR */
-  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, vaddr_t t = CSRs(imm); CSRs(imm) = src1; R(rd) = t);
-  //INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, isa_raise_intr(imm, s->dnpc));
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, volatile vaddr_t t = CSRs(imm);
+          CSRs(imm) = src1; R(rd) = t);
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, volatile vaddr_t t = CSRs(imm);
+          CSRs(imm) = t | src1; R(rd) = t);
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc));
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , I, MRET);
+  
 
 
   /* RV32M Multiply Extension */

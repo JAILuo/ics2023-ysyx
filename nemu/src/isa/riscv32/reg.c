@@ -34,6 +34,7 @@ void isa_reg_display() {
     printf("|Register|\t|           Value         |\n");
     printf("----------\t---------------------------\n");
     */
+    printf("dut_reg:\n");
     for (i = 0;  i < ARRLEN(regs); i++) {
         // General-Purpose Registers
         printf("%-16s0x%08x\t%d\n", regs[i], gpr(i), gpr(i)); 
@@ -61,7 +62,7 @@ word_t isa_reg_str2val(const char *s, bool *success) {
 
 vaddr_t *csr_reg(word_t imm) {
     switch (imm) {
-    case 0x300: return &(cpu.csr.mstauts);
+    case 0x300: return &(cpu.csr.mstatus);
     case 0x305: return &(cpu.csr.mtvec);
     case 0x341: return &(cpu.csr.mepc);
     case 0x342: return &(cpu.csr.mcasuse);

@@ -15,13 +15,28 @@
 
 #include <isa.h>
 #include <../local-include/reg.h>
+#include <stdio.h>
 
+// ECALL
 word_t isa_raise_intr(word_t NO, vaddr_t epc) {
   /* TODO: Trigger an interrupt/exception with ``NO''.
    * Then return the address of the interrupt/exception vector.
    */
+    if (NO==11) {
+        //epc+=4;
+    }
     cpu.csr.mepc = epc;
     cpu.csr.mcasuse = NO;
+    
+    cpu.csr.mstatus &= ~(1 << 7);
+
+    // 把异常发生前的 MIE 字段 保存到 MPIE 字段 
+    cpu.csr.mstatus |= ((cpu.csr.mstatus & (1 << 3)) << 4);
+    // 保存处理器模式 MPP bit[9:8] 0b11 M mode
+    cpu.csr.mstatus |= ((1 << 11) + (1 << 12));
+    // 关闭本地中断 MIE = 0
+    cpu.csr.mstatus &= ~(1 << 3);
+
     return cpu.csr.mtvec;
 }
 
