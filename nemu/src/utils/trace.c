@@ -38,7 +38,7 @@ void trace_inst(vaddr_t pc, uint32_t inst) {
     }
 }
 
-//IFDEF(CONFIG_ITRACE, {
+IFDEF(CONFIG_ITRACE, {
 void display_inst() {    
     if (cur_inst == 0) {
         return;
@@ -63,7 +63,7 @@ void display_inst() {
         printf(ANSI_NONE);
     }
 }
-//})
+})
 
 
 // ----------- mtrace -----------
@@ -233,7 +233,7 @@ void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
     call_depth++;
     
     int i = find_symbol_func(target, true); 
-    printf(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
+    log_write(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
            pc,
            (call_depth * 2)%40, " ",
            i >= 0 ? ftrace_tab[i].name : "???",
@@ -250,7 +250,7 @@ void ftrace_func_ret(vaddr_t pc) {
     if (!ftrace_tab) return;
 
     int i = find_symbol_func(pc, false);
-    printf(FMT_WORD ": %*sret [%s]\n",
+    log_write(FMT_WORD ": %*sret [%s]\n",
            pc,
            (call_depth * 2)%40, " ",
            i >=0 ? ftrace_tab[i].name : "???");
@@ -284,7 +284,7 @@ void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
 
 // ----------- dtrace -----------
 void etrace_log() {
-    printf("exception NO: %d\n"
+    log_write("exception NO: %d\n"
            "epc: %x\n", cpu.csr.mcause, cpu.csr.mepc);
 }
 

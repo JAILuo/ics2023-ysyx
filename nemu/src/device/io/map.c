@@ -17,6 +17,7 @@
 #include <memory/host.h>
 #include <memory/vaddr.h>
 #include <device/map.h>
+#include <utils.h>
 
 #define IO_SPACE_MAX (2 * 1024 * 1024)
 
@@ -53,11 +54,11 @@ void init_map() {
 }
 
 void trace_dread(paddr_t addr, int len, IOMap *map) {                                                
-    printf("dtrace: read %10s at " FMT_WORD "%d\n", map->name, addr, len);
+    log_write("dtrace: read %10s at " FMT_WORD "%d\n", map->name, addr, len);
 }
 
 void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
-    printf("dtrace: write %10s at " FMT_WORD "%d with " FMT_WORD "\n",
+    log_write("dtrace: write %10s at " FMT_WORD "%d with " FMT_WORD "\n",
            map->name, addr, len, data);
 }
 
