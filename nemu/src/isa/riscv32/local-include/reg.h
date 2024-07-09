@@ -32,4 +32,7 @@ static inline const char* reg_name(int idx) {
 
 extern const char *regs[];
 
+vaddr_t *csr_reg(word_t imm);
+#define CSRs(i) *csr_reg(i)
+
 #endif

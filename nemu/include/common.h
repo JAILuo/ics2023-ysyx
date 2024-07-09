@@ -46,6 +46,5 @@ typedef uint16_t ioaddr_t;
 
 #include <debug.h>
 
-volatile static int dummy = 0;
 
 #endif

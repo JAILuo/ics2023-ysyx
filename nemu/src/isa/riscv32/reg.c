@@ -58,3 +58,16 @@ word_t isa_reg_str2val(const char *s, bool *success) {
     *success = false;
     return 0;
 }
+
+vaddr_t *csr_reg(word_t imm) {
+    switch (imm) {
+    case 0x300: return &(cpu.csr.mstauts);
+    case 0x305: return &(cpu.csr.mtvec);
+    case 0x341: return &(cpu.csr.mepc);
+    case 0x342: return &(cpu.csr.mcasuse);
+    default: 
+        panic("unkwon csr.\n" "mstauts, mtvec, mepc, mcasuse\n");
+    } 
+}
+
+

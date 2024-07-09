@@ -33,6 +33,7 @@ enum {
   TYPE_N, // none
 };
 
+#define ECALL(dnpc) {bool success; dnpc = (isa_raise_intr(isa_reg_str2val("a7", &success), s->pc));}
 
 /** 
  * you may forget add sext for your instruction
@@ -179,8 +180,13 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? ??? ????? 00101 11", auipc  , U, R(rd) = s->pc + imm);
 
   /* system */
-  //ecall
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
+  
+  /* CSR */
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, vaddr_t t = CSRs(imm); CSRs(imm) = src1; R(rd) = t);
+  //INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, isa_raise_intr(imm, s->dnpc));
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc));
+
 
   /* RV32M Multiply Extension */
   INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , R, R(rd) = src1 * src2);
@@ -193,6 +199,7 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000001 ????? ????? 101 ????? 01100 11", divu   , R, R(rd) = src1 / src2);
   INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem    , R, R(rd) = (sword_t)src1 % (sword_t)src2);
   INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , R, R(rd) = src1 % src2);
+
 
   /* add more... */
 
