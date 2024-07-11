@@ -69,12 +69,12 @@ void display_inst() {
 // ----------- mtrace -----------
 void display_pread(paddr_t addr, int len) {
     // load
-    printf("pread at " FMT_PADDR " len=%d\n", addr, len);
+    log_write("pread at " FMT_PADDR " len=%d\n", addr, len);
 }
 
 void display_pwrite(paddr_t addr, int len, word_t data) {
     // store
-    printf("pwrite at " FMT_PADDR " len=%d, data=" FMT_WORD "\n", addr, len, data);
+    log_write("pwrite at " FMT_PADDR " len=%d, data=" FMT_WORD "\n", addr, len, data);
 }
 
 
@@ -227,6 +227,7 @@ void parse_elf(const char *elf_file) {
 }
 
 // ----------- ftrace -----------
+#define CALL_DEPTH (((call_depth) * (2)) % 40) 
 void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
     if (!ftrace_tab) return;
 
@@ -235,7 +236,7 @@ void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
     int i = find_symbol_func(target, true); 
     log_write(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
            pc,
-           (call_depth * 2)%40, " ",
+           CALL_DEPTH, " ",
            i >= 0 ? ftrace_tab[i].name : "???",
            target);
 
@@ -250,9 +251,9 @@ void ftrace_func_ret(vaddr_t pc) {
     if (!ftrace_tab) return;
 
     int i = find_symbol_func(pc, false);
-    log_write(FMT_WORD ": %*sret [%s]\n",
+    log_write(FMT_WORD ":%*sret [%s]\n",
            pc,
-           (call_depth * 2)%40, " ",
+           CALL_DEPTH, " ",
            i >=0 ? ftrace_tab[i].name : "???");
 
     call_depth--;

@@ -79,14 +79,14 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
 }
 
 int printf(const char *fmt, ...) {
-    char buf[256];
+    char buf[2048];
     va_list args;
     va_start(args, fmt);
     int len = vsprintf(buf, fmt, args);
+    va_end(args);
     for (int i = 0; i < len; i++) {
         putch(buf[i]);
     }
-    va_end(args);
     return 0; // 返回值通常为写入的字符数，这里简化处理
 }
 

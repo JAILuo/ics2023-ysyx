@@ -4,8 +4,8 @@
 #include <stdbool.h>
 
 // riscv32-nemu use: maybe i can use marco the test.
-static char *start_addr = NULL;
-static bool is_init = false;
+//static char *start_addr = NULL;
+//static bool is_init = false;
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 static unsigned long int next = 1;
@@ -39,6 +39,8 @@ void *malloc(size_t size) {
   // Therefore do not call panic() here, else it will yield a dead recursion:
   //   panic() -> putchar() -> (glibc) -> malloc() -> panic()
 #if !(defined(__ISA_NATIVE__) && defined(__NATIVE_USE_KLIB__))
+    static char *start_addr = NULL;
+    static bool is_init = false;
     if (!is_init) {
         //start_addr = heap.start;
         start_addr = (void*)ROUNDUP(heap.start, 4);

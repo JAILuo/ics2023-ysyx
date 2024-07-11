@@ -7,6 +7,9 @@
 //#define MULTIPROGRAM
 //#define TIME_SHARING
 
+#define HAS_CTE
+
+
 #include <am.h>
 #include <klib.h>
 #include <klib-macros.h>

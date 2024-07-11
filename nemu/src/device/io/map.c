@@ -54,12 +54,15 @@ void init_map() {
 }
 
 void trace_dread(paddr_t addr, int len, IOMap *map) {                                                
-    log_write("dtrace: read %10s at " FMT_WORD "%d\n", map->name, addr, len);
+    log_write("dtrace: read %10s at " FMT_WORD " len: %d\n"
+              "map->high: " FMT_WORD " map->low: " FMT_WORD " map->space: 0x%x\n",
+              map->name, addr, len, map->high, map->low, *((unsigned int *)map->space));
 }
 
 void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
-    log_write("dtrace: write %10s at " FMT_WORD "%d with " FMT_WORD "\n",
-           map->name, addr, len, data);
+    log_write("dtrace: write %10s at " FMT_WORD "%d with " FMT_WORD "\n"
+              "map->high: " FMT_WORD " map->low: " FMT_WORD " map->space: 0x%x\n",
+              map->name, addr, len, data, map->high, map->low, *((unsigned int *)map->space));
 }
 
 word_t map_read(paddr_t addr, int len, IOMap *map) {
