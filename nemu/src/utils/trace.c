@@ -96,7 +96,6 @@ int ftrace_table_size = 0;
 
 int call_depth = 0;
 
-/*
 TailRecNode *tail_rec_head = NULL; // linklist with head, dynamic allocated
 
 static void init_tail_rec_list() {
@@ -118,10 +117,9 @@ static void remove_tail_rec() {
 	tail_rec_head->next = node->next;
 	free(node);
 }
-*/
 /* 
  * the tail of recusive optimization code above comes from Internet
- * TODO: in the future.
+ * TODO
  **/
 
 
@@ -192,7 +190,6 @@ static void get_symbols(int fd, Elf32_Shdr *sh_tab) {
 int find_symbol_func(vaddr_t target, bool is_call) {
     int i = 0;
     for (; i < ftrace_table_size; i++) {
-        //if (ftrace_tab[i].info == STT_FUNC) {
         if (ELF32_ST_TYPE(ftrace_tab[i].info) == STT_FUNC) {
             if (is_call) {
                 if (ftrace_tab[i].addr == target) break;
@@ -221,44 +218,42 @@ void parse_elf(const char *elf_file) {
 
    get_symbols(fd, sh);
 
-   //init_tail_rec_list();
+   init_tail_rec_list();
 
    close(fd);
 }
 
 // ----------- ftrace -----------
-#define CALL_DEPTH (((call_depth) * (2)) % 40) 
+#define CALL_DEPTH (((call_depth) * (2)) % 50) 
 void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
     if (!ftrace_tab) return;
 
     call_depth++;
-    
     int i = find_symbol_func(target, true); 
+    //printf(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
     log_write(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
            pc,
            CALL_DEPTH, " ",
+           //call_depth, " ",
            i >= 0 ? ftrace_tab[i].name : "???",
            target);
-
-    /*
     if (is_tail) {
 		insert_tail_rec(pc, call_depth-1);
     }
-    */
 }
 
 void ftrace_func_ret(vaddr_t pc) {
     if (!ftrace_tab) return;
 
-    int i = find_symbol_func(pc, false);
-    log_write(FMT_WORD ":%*sret [%s]\n",
+   int i = find_symbol_func(pc, false);
+   //printf(FMT_WORD ":%*sret [%s]\n",
+   log_write(FMT_WORD ":%*sret [%s]\n",
            pc,
            CALL_DEPTH, " ",
+           //call_depth, " ",
            i >=0 ? ftrace_tab[i].name : "???");
-
     call_depth--;
 
-    /*
     TailRecNode *node = tail_rec_head->next;
 	if (node != NULL) {
 		if (node->depth == call_depth) {
@@ -267,7 +262,6 @@ void ftrace_func_ret(vaddr_t pc) {
 			ftrace_func_ret(ret_target);
 		}
 	}
-    */
 }
 
 

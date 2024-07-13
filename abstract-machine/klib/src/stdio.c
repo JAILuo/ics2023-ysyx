@@ -85,6 +85,7 @@ int printf(const char *fmt, ...) {
     int len = vsprintf(buf, fmt, args);
     va_end(args);
     for (int i = 0; i < len; i++) {
+        //putch('A');
         putch(buf[i]);
     }
     return 0; // 返回值通常为写入的字符数，这里简化处理

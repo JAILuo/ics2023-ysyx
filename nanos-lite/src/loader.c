@@ -1,5 +1,6 @@
 #include <proc.h>
 #include <elf.h>
+#include <stdint.h>
 
 size_t ramdisk_read(void *buf, size_t offset, size_t len);
 size_t ramdisk_write(const void *buf, size_t offset, size_t len);
@@ -45,7 +46,7 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
                    ph[i].p_memsz - ph[i].p_filesz);
         }
     }
-    return eh.e_entry;
+    return (uintptr_t)eh.e_entry;
 }
 
 void naive_uload(PCB *pcb, const char *filename) {

@@ -25,7 +25,7 @@ const char *syscall_name[] = {
     // more...
 };
 
-#define CONFIG_STRACE
+//#define CONFIG_STRACE 
 #ifdef CONFIG_STRACE
 #define strace() \
     Log("\n[strace]" "syscall: %s num: %d\n" \
@@ -50,11 +50,9 @@ void sys_exit(int code) {
 }
 int sys_write(int fd, const void *buf, int count) {
     if (fd == 1 || fd == 2) {
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < count; i++)
             putch(*((const char *)buf+ i));
-        }
     }
-
     return count;
 }
 
@@ -70,7 +68,7 @@ void do_syscall(Context *c) {
     case SYS_yield: c->GPRx = sys_yield(); break;
     case SYS_write: c->GPRx = sys_write(a[1], (char *)a[2], a[3]); break;
     case SYS_brk: c->GPRx = 0; break;
-    default: panic("Unhandled syscall ID = %d", a[0]);
+    default: /*panic("Unhandled syscall ID = %d", a[0]); */
   }
   strace();
 }
