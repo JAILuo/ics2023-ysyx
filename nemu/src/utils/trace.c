@@ -69,12 +69,12 @@ void display_inst() {
 // ----------- mtrace -----------
 void display_pread(paddr_t addr, int len) {
     // load
-    log_write("pread at " FMT_PADDR " len=%d\n", addr, len);
+    log_write("[dtrace] " "pread at " FMT_PADDR " len=%d\n", addr, len);
 }
 
 void display_pwrite(paddr_t addr, int len, word_t data) {
     // store
-    log_write("pwrite at " FMT_PADDR " len=%d, data=" FMT_WORD "\n", addr, len, data);
+    log_write("[dtrace] " "pwrite at " FMT_PADDR " len=%d, data=" FMT_WORD "\n", addr, len, data);
 }
 
 
@@ -285,7 +285,7 @@ void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
 
 // ----------- dtrace -----------
 void etrace_log() {
-    log_write("exception NO: %d\n"
+    log_write("[etrace] " "exception NO: %d\n"
            "epc: %x\n", cpu.csr.mcause, cpu.csr.mepc);
 }
 

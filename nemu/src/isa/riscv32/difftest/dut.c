@@ -21,7 +21,7 @@
 #define CHECK_REG(reg, name) { \
     if ((ref_r->reg) != (cpu.reg)) { \
         printf(name ": diff\n" \
-               "ref_r->" name ": " FMT_WORD "  dut" name ": " FMT_WORD "\n", \
+               "ref_r->" name ": " FMT_WORD "  dut->" name ": " FMT_WORD "\n", \
                (ref_r->reg), (cpu.reg)); \
         is_same = false; \
     } \

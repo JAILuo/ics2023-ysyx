@@ -183,6 +183,13 @@ config ETRACE
     Enable exception tracer with a reference design.
     Note that this will significantly reduce the performance of NEMU.
 
+config STRACE
+  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  bool "Enable system call tracer"
+  default n
+  help
+    Enable system call tracer with a reference design.
+    Note that this will significantly reduce the performance of NEMU.
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"
