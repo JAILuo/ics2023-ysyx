@@ -1,6 +1,7 @@
 #include <proc.h>
 #include <elf.h>
 #include <stdint.h>
+#include <fs.h>
 
 size_t ramdisk_read(void *buf, size_t offset, size_t len);
 size_t ramdisk_write(const void *buf, size_t offset, size_t len);
@@ -28,24 +29,40 @@ size_t get_ramdisk_size();
 # error unsupported ISA __ISA__
 #endif
 
+int fs_open(const char *pathname, int flags, int mode);
+size_t fs_read(int fd, void *buf, size_t len);
+size_t fs_write(int fd, const void *buf, size_t len);
+size_t fs_lseek(int fd, size_t offset, int whence);
+int fs_close(int fd);
+
+size_t ramdisk_read(void *buf, size_t offset, size_t len);
+size_t ramdisk_write(const void *buf, size_t offset, size_t len);
+size_t get_ramdisk_size();
 
 static uintptr_t loader(PCB *pcb, const char *filename) {
+    int fd = fs_open(filename, 0, 0);
+
     Elf_Ehdr eh;
-    ramdisk_read(&eh, 0, sizeof(Elf_Ehdr));
+    fs_read(fd, &eh, sizeof(Elf_Ehdr));
     assert(*(uint32_t *)eh.e_ident == 0x464c457f); //little endian 7f 45 4c 46
 
-    /* check machine  */ 
+    // check machine  
     assert(eh.e_machine == EXPECT_TYPE);
 
     Elf_Phdr ph[eh.e_phnum];
-    ramdisk_read(ph, eh.e_phoff, sizeof(Elf_Phdr) * eh.e_phnum);
+    fs_lseek(fd, eh.e_phoff, SEEK_SET);
+    fs_read(fd, ph, sizeof(Elf_Phdr) * eh.e_phnum);
     for (int i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type == PT_LOAD) {
-            ramdisk_read((void *)ph[i].p_paddr, ph[i].p_offset, ph[i].p_memsz);
-            memset((void *)ph[i].p_paddr + ph[i].p_filesz, 0, 
+            fs_lseek(fd, ph[i].p_offset, SEEK_SET);
+            // vaddr or paddr？
+            fs_read(fd, (void *)ph[i].p_vaddr, ph[i].p_memsz);
+            memset((void *)ph[i].p_vaddr + ph[i].p_filesz, 0, 
                    ph[i].p_memsz - ph[i].p_filesz);
         }
     }
+
+    fs_close(fd);
     return (uintptr_t)eh.e_entry;
 }
 

@@ -69,12 +69,12 @@ void display_inst() {
 // ----------- mtrace -----------
 void display_pread(paddr_t addr, int len) {
     // load
-    log_write("[dtrace] " "pread at " FMT_PADDR " len=%d\n", addr, len);
+    log_write("[mtrace] " "pread at " FMT_PADDR " len=%d\n", addr, len);
 }
 
 void display_pwrite(paddr_t addr, int len, word_t data) {
     // store
-    log_write("[dtrace] " "pwrite at " FMT_PADDR " len=%d, data=" FMT_WORD "\n", addr, len, data);
+    log_write("[mtrace] " "pwrite at " FMT_PADDR " len=%d, data=" FMT_WORD "\n", addr, len, data);
 }
 
 
