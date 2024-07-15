@@ -35,10 +35,6 @@ size_t fs_write(int fd, const void *buf, size_t len);
 size_t fs_lseek(int fd, size_t offset, int whence);
 int fs_close(int fd);
 
-size_t ramdisk_read(void *buf, size_t offset, size_t len);
-size_t ramdisk_write(const void *buf, size_t offset, size_t len);
-size_t get_ramdisk_size();
-
 static uintptr_t loader(PCB *pcb, const char *filename) {
     int fd = fs_open(filename, 0, 0);
 

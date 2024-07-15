@@ -36,9 +36,17 @@ static Finfo file_table[] __attribute__((used)) = {
 #include "files.h"
 };
 
+#define NR_FILE sizeof(file_table) / sizeof(Finfo)
+char *fd_name(int fd) {
+    if (fd >= 0 && fd < NR_FILE) {
+        return file_table[fd].name;
+    }
+    return NULL;
+}
+        //printf("        \33[1;35msfs open file: %s\33[0m\n\n",file_table[fd].name);
+
 int fs_open(const char *pathname, int flags, int mode) {
-    int len = sizeof(file_table) / sizeof(Finfo);
-    for (int i = 3; i < len ; i++) {
+    for (int i = 3; i < NR_FILE; i++) {
         if (strcmp(file_table[i].name, pathname) == 0) {
             file_table[i].open_offset = 0;
            //file_table[i].disk_offset = 0;
