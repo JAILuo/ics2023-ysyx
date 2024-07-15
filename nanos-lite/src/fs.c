@@ -3,6 +3,7 @@
 size_t ramdisk_read(void *buf, size_t offset, size_t len);
 size_t ramdisk_write(const void *buf, size_t offset, size_t len);
 size_t get_ramdisk_size();
+size_t serial_write(const void *buf, size_t offset, size_t len);
 
 typedef size_t (*ReadFn) (void *buf, size_t offset, size_t len);
 typedef size_t (*WriteFn) (const void *buf, size_t offset, size_t len);
@@ -31,8 +32,8 @@ size_t invalid_write(const void *buf, size_t offset, size_t len) {
 /* This is the information about all files in disk. */
 static Finfo file_table[] __attribute__((used)) = {
   [FD_STDIN]  = {"stdin", 0, 0, invalid_read, invalid_write, 0},
-  [FD_STDOUT] = {"stdout", 0, 0, invalid_read, invalid_write, 0},
-  [FD_STDERR] = {"stderr", 0, 0, invalid_read, invalid_write, 0},
+  [FD_STDOUT] = {"stdout", 0, 0, invalid_read, serial_write, 0},
+  [FD_STDERR] = {"stderr", 0, 0, invalid_read, serial_write, 0},
 #include "files.h"
 };
 
@@ -43,7 +44,6 @@ char *fd_name(int fd) {
     }
     return NULL;
 }
-        //printf("        \33[1;35msfs open file: %s\33[0m\n\n",file_table[fd].name);
 
 int fs_open(const char *pathname, int flags, int mode) {
     for (int i = 3; i < NR_FILE; i++) {
@@ -59,40 +59,41 @@ int fs_open(const char *pathname, int flags, int mode) {
 }
 
 size_t fs_read(int fd, void *buf, size_t len) {
+    assert(fd >= 0 && fd < NR_FILE);
     if (fd < 3) return 0;
 
+    if (file_table[fd].read !=  NULL) 
+        return file_table[fd].read(buf, 0, len);
+    
+    size_t real_len = len;
     size_t open_offset = file_table[fd].open_offset;
     size_t size = file_table[fd].size;
-    size_t real_len = len;
-    if (open_offset + len > size) {
+    if (open_offset + len > size)
         real_len = size - open_offset;
-    }
 
-    int ret = ramdisk_read(buf, file_table[fd].disk_offset + open_offset, real_len);
+    size_t ret = ramdisk_read(buf, file_table[fd].disk_offset + open_offset, real_len);
     file_table[fd].open_offset += real_len;
     return ret;
 }
 
 size_t fs_write(int fd, const void *buf, size_t len) {
-    size_t ret = 0;
-    if (fd == 1 || fd == 2)  {
-        for (int i = 0; i < len; i++) { 
-            putch(*((const char *)buf+ i));
-        }
-        ret = len;
-    } else if (fd == 0) {
-        panic("should not write to stdin\n");
-    } else {
-        size_t open_offset = file_table[fd].open_offset;
-        size_t size = file_table[fd].size;
-        assert(open_offset + len <= size);
-        ret = ramdisk_write(buf, file_table[fd].disk_offset + open_offset, len);
-        file_table[fd].open_offset += len;
-    }
+    assert(fd >= 0 && fd < NR_FILE);
+    if (file_table[fd].write != NULL)
+        return file_table[fd].write(buf, 0, len);
+
+    size_t open_offset = file_table[fd].open_offset;
+    size_t size = file_table[fd].size;
+    size_t real_len = len;
+    if (open_offset + len > size)
+        real_len = size - open_offset;
+
+    size_t ret = ramdisk_write(buf, file_table[fd].disk_offset + open_offset, real_len);
+    file_table[fd].open_offset += real_len;
     return ret;
 }
 
 size_t fs_lseek(int fd, size_t offset, int whence) {
+    assert(fd >= 0 && fd < NR_FILE);
     size_t cur_offset = file_table[fd].open_offset;
 
     switch (whence) {
@@ -115,6 +116,7 @@ size_t fs_lseek(int fd, size_t offset, int whence) {
 
 
 int fs_close(int fd) {
+    assert(fd >= 0 && fd < NR_FILE);
     /* always success */
     return 0;
 }

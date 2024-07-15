@@ -1,5 +1,6 @@
 #include <common.h>
 #include "syscall.h"
+#include <sys/time.h>
 
 const char *syscall_name[] = {
     [SYS_exit] = "exit",
@@ -70,6 +71,16 @@ void sys_exit(int code) {
     halt(code);
 }
 
+int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
+    /* see manual: man gettimeofday */
+    assert(tv != NULL);
+    uint64_t us = 0;
+    ioe_read(AM_TIMER_UPTIME, &us);
+    tv->tv_sec = us / 1000000;
+    tv->tv_usec = us % 1000000;
+    return 0;
+}
+
 void do_syscall(Context *c) {
   uintptr_t a[4];
   a[0] = c->GPR1; // a7
@@ -86,6 +97,7 @@ void do_syscall(Context *c) {
     case SYS_close: c->GPRx = fs_close(a[1]); break;
     case SYS_lseek: c->GPRx = fs_lseek(a[1], a[2], a[3]); break;
     case SYS_brk: c->GPRx = 0; break;
+    case SYS_gettimeofday: c->GPRx = sys_gettimeofday((struct timeval *)a[1], (struct timezone *)a[2]); break;
     default: panic("Unhandled syscall ID = %d", a[0]);
   }
   strace();
