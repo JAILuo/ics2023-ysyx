@@ -9,6 +9,7 @@
 
 static int evtdev = -1;
 static int fbdev = -1;
+static int dispdev = -1;
 static int screen_w = 0, screen_h = 0;
 
 uint32_t start_time = 0; // enough? 2038?
@@ -70,6 +71,12 @@ int NDL_Init(uint32_t flags) {
   }
 
   evtdev = open("/dev/events", 0);
+
+  dispdev = open("/proc/dispinfo", 0);
+  char buf[64];
+  read(dispdev, buf, sizeof(buf));
+  sscanf(buf, "WIDTH : %d\nHEIGHT:%d\n", &screen_w, &screen_h);
+  printf("width: %d\n height: %d\n", screen_w, screen_h);
 
   struct timeval tv;
   gettimeofday(&tv, NULL);

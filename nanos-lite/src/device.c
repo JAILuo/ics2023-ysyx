@@ -6,6 +6,8 @@
 # define MULTIPROGRAM_YIELD()
 #endif
 
+static int screen_h = 0, screen_w = 0;
+
 #define NAME(key) \
   [AM_KEY_##key] = #key,
 
@@ -31,7 +33,12 @@ size_t events_read(void *buf, size_t offset, size_t len) {
 }
 
 size_t dispinfo_read(void *buf, size_t offset, size_t len) {
-  return 0;
+    AM_GPU_CONFIG_T cfg;
+    ioe_read(AM_GPU_CONFIG, &cfg);
+    sprintf((char *)buf, "WIDTH:%d\nHEIGHT:%d\n", cfg.width, cfg.height);
+    screen_h = cfg.height;
+    screen_w = cfg.width;
+    return strlen(buf);
 }
 
 size_t fb_write(const void *buf, size_t offset, size_t len) {
