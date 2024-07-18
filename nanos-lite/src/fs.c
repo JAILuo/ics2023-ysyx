@@ -6,6 +6,7 @@ size_t get_ramdisk_size();
 size_t serial_write(const void *buf, size_t offset, size_t len);
 size_t events_read(void *buf, size_t offset, size_t len);
 size_t dispinfo_read(void *buf, size_t offset, size_t len);
+size_t fb_write(const void *buf, size_t offset, size_t len);
 
 typedef size_t (*ReadFn) (void *buf, size_t offset, size_t len);
 typedef size_t (*WriteFn) (const void *buf, size_t offset, size_t len);
@@ -38,6 +39,7 @@ static Finfo file_table[] __attribute__((used)) = {
   [FD_STDERR]   = {"stderr", 0, 0, invalid_read, serial_write, 0},
   [FD_EVENT]    = {"/dev/events", 0, 0, events_read, invalid_write, 0},
   [FD_DISPINFO] = {"/proc/dispinfo",0 ,0, dispinfo_read, invalid_write, 0},
+  [FD_FB]       = {"/dev/fb", 0, 0, invalid_read, fb_write, 0},
 #include "files.h"
 };
 
@@ -53,9 +55,7 @@ int fs_open(const char *pathname, int flags, int mode) {
     for (int i = 3; i < NR_FILE; i++) {
         if (strcmp(file_table[i].name, pathname) == 0) {
             file_table[i].open_offset = 0;
-           //file_table[i].disk_offset = 0;
-           //printf("fs_open:%s file_table[%d]\n",file_table[i].name, i);
-           return i;
+            return i;
         }
     }
     panic("No such file: %s\n", pathname);
@@ -126,5 +126,10 @@ int fs_close(int fd) {
 }
 
 void init_fs() {
-  // TODO: initialize the size of /dev/fb
+    int dispdev = fs_open("/dev/fb", 0, 0);
+    int w = io_read(AM_GPU_CONFIG).width;
+    int h = io_read(AM_GPU_CONFIG).height;
+
+    file_table[dispdev].size = w * h;
+    //printf("width:%d\nheight:%d\n",w, h);
 }
