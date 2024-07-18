@@ -69,7 +69,7 @@ int NDL_Init(uint32_t flags) {
     evtdev = 3;
   }
 
-  evtdev = open("/dev/events", "r");
+  evtdev = open("/dev/events", 0);
 
   struct timeval tv;
   gettimeofday(&tv, NULL);

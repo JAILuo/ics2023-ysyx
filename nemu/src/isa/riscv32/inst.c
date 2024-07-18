@@ -34,8 +34,7 @@ enum {
 };
 
 #define ECALL(dnpc) {\
-    bool success; \
-    dnpc = (isa_raise_intr(isa_reg_str2val("a7", &success), s->pc)); \
+    dnpc = (isa_raise_intr(11, s->pc)); \
 }
 
 #define MRET { \
