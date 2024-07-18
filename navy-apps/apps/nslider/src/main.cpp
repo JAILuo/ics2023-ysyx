@@ -12,7 +12,7 @@
 //   gg - first page
 
 // number of slides
-const int N = 10;
+const int N = 4;
 // slides path pattern (starts from 0)
 const char *path = "/share/slides/slides-%d.bmp";
 
@@ -35,6 +35,7 @@ void prev(int rep) {
   cur -= rep;
   if (cur < 0) cur = 0;
   render();
+  printf("cur:%d\n",cur);
 }
 
 void next(int rep) {
@@ -42,6 +43,7 @@ void next(int rep) {
   cur += rep;
   if (cur >= N) cur = N - 1;
   render();
+  printf("cur:%d\n",cur);
 }
 
 int main() {
@@ -50,6 +52,7 @@ int main() {
 
   int rep = 0, g = 0;
 
+  printf("BitsPerPixel: %d\n",screen->format->BitsPerPixel);
   render();
 
   while (1) {
