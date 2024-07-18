@@ -49,15 +49,14 @@ void NDL_OpenCanvas(int *w, int *h) {
     }
     close(fbctl);
   }
+
   assert(screen_h >= *h && screen_w >= *w);
-  // 设置canvas大小
   if (*w == 0 && *h == 0) {
-    canvas_h = screen_h;
-    canvas_w = screen_w;
-  } else {
-    canvas_h = *h;
-    canvas_w = *w;
+      *w = screen_w;
+      *h = screen_h;
   }
+  canvas_w = *w;
+  canvas_h = *h;
 }
 
 // 向画布`(x, y)`坐标处绘制`w*h`的矩形图像, 并将该绘制区域同步到屏幕上
@@ -72,6 +71,9 @@ void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
     
     x += (screen_w - canvas_w) / 2;
     y += (screen_h - canvas_h) / 2;
+    // Directly modify the canvas offset coordinates on x, y
+    // Or define a reference variable
+    // int ref_x, ref_y; Adjust here, then add to x,y
     for (int row = 0; row < h; row++) {
         int offset = (y + row) * screen_w + x;
         lseek(fbdev, offset * 4, SEEK_SET);
@@ -104,7 +106,7 @@ int NDL_Init(uint32_t flags) {
   char buf[64];
   read(dispdev, buf, sizeof(buf));
   sscanf(buf, "WIDTH : %d\nHEIGHT:%d\n", &screen_w, &screen_h);
-  //printf("width: %d\n height: %d\n", screen_w, screen_h);
+  //printf("in ndl_init: width: %d\n height: %d\n", screen_w, screen_h);
 
   // fopen? with buf
   fbdev = open("/dev/fb", O_RDWR);

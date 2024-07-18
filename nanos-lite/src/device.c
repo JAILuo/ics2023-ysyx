@@ -41,18 +41,17 @@ size_t dispinfo_read(void *buf, size_t offset, size_t len) {
     return strlen(buf);
 }
 
+// maybe also can write AM_GPU_FBDRAW directly
 size_t fb_write(const void *buf, size_t offset, size_t len) {
-    AM_GPU_FBDRAW_T ctl;
+    AM_GPU_CONFIG_T ev = io_read(AM_GPU_CONFIG);
+    int width = ev.width;
+
     offset /= 4;
-    ctl.pixels = (uint32_t *)buf;
-    ctl.x = offset % screen_w;
-    ctl.y = offset / screen_w;
-    // line precedence
-    ctl.w = len / 4;
-    //ctl.w = len;
-    ctl.h = 1;
-    ctl.sync = true; // refresh now
-    io_write(AM_GPU_FBDRAW, ctl.x, ctl.y, ctl.pixels, ctl.w, ctl.h, ctl.sync);
+    len /= 4;
+    int y = offset / width;
+    int x = offset - y * width;
+
+    io_write(AM_GPU_FBDRAW, x, y, (void *)buf, len, 1, true);
     return len;
 }
 

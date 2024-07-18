@@ -1,20 +1,124 @@
 #include <NDL.h>
 #include <sdl-video.h>
 #include <assert.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect) {
-  assert(dst && src);
-  assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
+    //printf("dst->format->BitsPerPixe is %d\n",dst->format->BitsPerPixel);
+    assert(dst && src);
+    assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
+
+    int w = 0, h = 0;
+    uint32_t s_start_pos = 0;
+    uint32_t d_start_pos = 0;
+    // srcrect and dstrecr == NULL RTFM
+    if (srcrect) {
+        s_start_pos = (srcrect->y * src->w) + srcrect->x;
+        w = srcrect->w; h = srcrect->h;
+    } else {
+        w = src->w; h = src->h;
+    }
+
+    if (dstrect) {
+        d_start_pos = (dstrect->y * dst->w) + dstrect->x;
+    }
+
+    uint8_t bits_per_pixel = dst->format->BitsPerPixel;
+    if (bits_per_pixel == 32) {
+        for (int row = 0; row < h; row++) {
+            uint32_t srcrect_offset = row * src->w;
+            uint32_t dstrect_offset = row * dst->w;
+            // Note: need to change the pointer type
+            //      before you can manipulate the pointer movement. 
+            memcpy((uint32_t *)dst->pixels + d_start_pos + dstrect_offset,
+                   (uint32_t *)src->pixels + s_start_pos + srcrect_offset,
+                   (src->w) * sizeof(uint32_t));
+        }
+    } else if (bits_per_pixel == 8) {
+        for (int row = 0; row < h; ++row) {
+            uint32_t srcrect_offset = row * src->w;
+            uint32_t dstrect_offset = row * dst->w;
+            memcpy((uint8_t *)dst->pixels + d_start_pos + srcrect_offset,
+                  (uint8_t *)src->pixels + s_start_pos + dstrect_offset,
+                  (src->w) * sizeof(uint8_t));  
+        }
+    } else {
+        printf("now unsupported pixel bites %u.\n", bits_per_pixel);
+    }
 }
 
 void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
+    int32_t start_pos = 0;
+    uint32_t sf_row_num = dst->h;
+    uint32_t sf_col_num = dst->w;
+    uint32_t rec_row_num = dst->h;
+    uint32_t rec_col_num = dst->w;
+    if (dstrect) {
+        start_pos = dstrect->x + dstrect->y * dst->w;
+        rec_row_num = dstrect->h;
+        rec_col_num = dstrect->w;
+    }
+
+    uint8_t bits_per_pixel = dst->format->BitsPerPixel;
+    if (bits_per_pixel == 32) {
+        for (int row = 0; row < rec_row_num; ++row)
+            memset((uint32_t *)dst->pixels + start_pos + row * sf_col_num,
+                   color, rec_col_num * sizeof(uint32_t));
+    } else if (bits_per_pixel == 8) {
+        for (int row = 0; row < rec_row_num; ++row)
+            memset((uint8_t *)dst->pixels + start_pos + row * sf_col_num,
+                    color, rec_col_num * sizeof(uint8_t));
+    } else {
+        printf("unsupported pixel bites %d!\n", dst->format->BitsPerPixel);
+    }
 }
 
+// 将画布中的指定矩形区域同步到屏幕上.
+// 在 (x,y) 处画 w * h 大小的矩形
+// 同NDL
+// SDL_Surface -> RGBA format(32bit)
 void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
-    NDL_DrawRect((uint32_t *)s->pixels, x, y, s->w, s->h);
+    assert(s != NULL);
+    // improtant: only w == 0 && h == 0, then set the s size.
+    if (w == 0 && h == 0) {
+        w = s->w;
+        h = s->h;
+    }
+
+    uint8_t bits_per_pixel = s->format->BitsPerPixel;
+    uint32_t len = w * h;
+    uint32_t *buf = malloc(sizeof(uint32_t) * len);
+    uint32_t start_pos = (y * s->w) + x;
+    size_t i = 0;
+    for (size_t row = 0; row < h; ++row) {
+        for (size_t col = 0; col < w; ++col) {
+            uint32_t offset = (row * s->w) + col;
+            // follow SDL_CreateRGBSurface...
+            if (bits_per_pixel == 32) {
+                buf[i++] = (uint32_t)(s->pixels[start_pos + 4 * offset + 3] << 24 |
+                            s->pixels[start_pos + 4 * offset + 2] << 16 |
+                            s->pixels[start_pos + 4 * offset + 1] << 8 |
+                            s->pixels[start_pos + 4 * offset]);
+            } else if (bits_per_pixel == 8) {
+                /*
+                SDL_Color rgba_color =
+                    s->format->palette->colors[s->pixels[start_pos + offset]];
+                buf[i++] = rgba_color.a << 24 | rgba_color.r << 16 |
+                            rgba_color.g << 8 | rgba_color.b;
+                */
+            } else {
+                printf("now unsupported pixel bites %u.\n",
+                        bits_per_pixel);
+            }
+        }
+    }
+    NDL_DrawRect(buf, x, y, w, h);
+    free(buf);
 }
+
 
 // APIs below are already implemented.
 
@@ -92,7 +196,8 @@ void SDL_FreeSurface(SDL_Surface *s) {
 }
 
 SDL_Surface* SDL_SetVideoMode(int width, int height, int bpp, uint32_t flags) {
-  if (flags & SDL_HWSURFACE) NDL_OpenCanvas(&width, &height);
+  if (flags & SDL_HWSURFACE)
+      NDL_OpenCanvas(&width, &height);
   return SDL_CreateRGBSurface(flags, width, height, bpp,
       DEFAULT_RMASK, DEFAULT_GMASK, DEFAULT_BMASK, DEFAULT_AMASK);
 }
