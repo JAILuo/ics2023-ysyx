@@ -47,7 +47,7 @@ ARCHIVE  = $(WORK_DIR)/build/$(NAME)-$(ISA).a
 
 ### Add default libraries for ISA != native
 ifneq ($(ISA), native)
-LIBS += libc libos libndl
+LIBS += libc libos libndl libSDL_image
 CFLAGS += -U_FORTIFY_SOURCE  # fix compile error in Newlib on ubuntu
 else
 WL = -Wl,
@@ -166,8 +166,8 @@ $(CLEAN_ALL):
 .PHONY: clean-all $(CLEAN_ALL)
 
 ### Build fsimg and ramdisk for Nanos-lite
-APPS = nterm menu nslider
-#APPS = nterm 
+#APPS = bird nterm menu nslider
+APPS = bird menu
 #TESTS = fixedpt-test bmp-test event-test timer-test file-test
 TESTS =
 

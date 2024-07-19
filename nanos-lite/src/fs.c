@@ -34,7 +34,7 @@ size_t invalid_write(const void *buf, size_t offset, size_t len) {
 
 /* This is the information about all files in disk. */
 static Finfo file_table[] __attribute__((used)) = {
-  [FD_STDIN]    = {"stdin", 0, 0, invalid_read, invalid_write, 0},
+  [FD_STDIN]    = {"stdin", 0, 0, invalid_read, invalid_write, 0}, // 0
   [FD_STDOUT]   = {"stdout", 0, 0, invalid_read, serial_write, 0},
   [FD_STDERR]   = {"stderr", 0, 0, invalid_read, serial_write, 0},
   [FD_EVENT]    = {"/dev/events", 0, 0, events_read, invalid_write, 0},
@@ -54,6 +54,7 @@ char *fd_name(int fd) {
 int fs_open(const char *pathname, int flags, int mode) {
     for (int i = 3; i < NR_FILE; i++) {
         if (strcmp(file_table[i].name, pathname) == 0) {
+            // printf("open file: %s  size: %d\n",file_table[i].name, file_table[i].size);
             file_table[i].open_offset = 0;
             return i;
         }
@@ -121,7 +122,7 @@ size_t fs_lseek(int fd, size_t offset, int whence) {
 
 int fs_close(int fd) {
     assert(fd >= 0 && fd < NR_FILE);
-    /* always success */
+    // always success
     return 0;
 }
 

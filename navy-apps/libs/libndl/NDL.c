@@ -25,8 +25,9 @@ uint32_t NDL_GetTicks() {
 // 读出一条事件信息, 将其写入`buf`中, 最长写入`len`字节
 // 若读出了有效的事件, 函数返回1, 否则返回0
 int NDL_PollEvent(char *buf, int len) {
+    memset(buf, '\0', len);
     assert(evtdev != -1);
-    return read(evtdev, buf, len);
+    return read(evtdev, (void *)buf, len);
 }
 
 // 打开一张(*w) X (*h)的画布
@@ -49,7 +50,6 @@ void NDL_OpenCanvas(int *w, int *h) {
     }
     close(fbctl);
   }
-
   assert(screen_h >= *h && screen_w >= *w);
   if (*w == 0 && *h == 0) {
       *w = screen_w;
@@ -57,6 +57,7 @@ void NDL_OpenCanvas(int *w, int *h) {
   }
   canvas_w = *w;
   canvas_h = *h;
+  //printf("*w: %d *h: %d\n", *w, *h);
 }
 
 // 向画布`(x, y)`坐标处绘制`w*h`的矩形图像, 并将该绘制区域同步到屏幕上
@@ -96,6 +97,7 @@ int NDL_QueryAudio() {
 }
 
 int NDL_Init(uint32_t flags) {
+    //printf("");
   if (getenv("NWM_APP")) {
     evtdev = 3;
   }

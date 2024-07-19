@@ -52,8 +52,8 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
         if (ph[i].p_type == PT_LOAD) {
             fs_lseek(fd, ph[i].p_offset, SEEK_SET);
             // vaddr or paddr？
-            fs_read(fd, (void *)ph[i].p_vaddr, ph[i].p_memsz);
-            memset((void *)ph[i].p_vaddr + ph[i].p_filesz, 0, 
+            fs_read(fd, (void *)(uintptr_t)ph[i].p_vaddr, ph[i].p_memsz);
+            memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
                    ph[i].p_memsz - ph[i].p_filesz);
         }
     }

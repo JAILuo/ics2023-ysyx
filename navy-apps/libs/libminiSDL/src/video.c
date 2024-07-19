@@ -6,74 +6,93 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+// 将一张画布中的指定矩形区域复制到另一张画布的指定位置
 void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect) {
-    //printf("dst->format->BitsPerPixe is %d\n",dst->format->BitsPerPixel);
-    assert(dst && src);
-    assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
+	assert(dst && src);
+	assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
 
-    int w = 0, h = 0;
-    uint32_t s_start_pos = 0;
-    uint32_t d_start_pos = 0;
-    // srcrect and dstrecr == NULL RTFM
-    if (srcrect) {
-        s_start_pos = (srcrect->y * src->w) + srcrect->x;
-        w = srcrect->w; h = srcrect->h;
-    } else {
-        w = src->w; h = src->h;
-    }
+	if(src->format->BitsPerPixel == 32){
+	    uint32_t* src_pixels = (uint32_t*)src->pixels;
+		uint32_t* dst_pixels = (uint32_t*)dst->pixels;
 
-    if (dstrect) {
-        d_start_pos = (dstrect->y * dst->w) + dstrect->x;
-    }
+		int rect_w, rect_h, src_x, src_y, dst_x, dst_y;
+		//RTFM. If srcrect == NULL, the entire surface is copied.
+		//If dstrect == NULL, then the destination position (upper left corner) is (0, 0).
+		if (srcrect){
+		  rect_w = srcrect->w; rect_h = srcrect->h;
+		  src_x = srcrect->x; src_y = srcrect->y;
+		}else {
+		  rect_w = src->w; rect_h = src->h;
+		  src_x = 0; src_y = 0;
+		}
+		if (dstrect){
+		  dst_x = dstrect->x, dst_y = dstrect->y;
+		}else {
+		  dst_x = 0; dst_y = 0;
+		}
 
-    uint8_t bits_per_pixel = dst->format->BitsPerPixel;
-    if (bits_per_pixel == 32) {
-        for (int row = 0; row < h; row++) {
-            uint32_t srcrect_offset = row * src->w;
-            uint32_t dstrect_offset = row * dst->w;
-            // Note: need to change the pointer type
-            //      before you can manipulate the pointer movement. 
-            memcpy((uint32_t *)dst->pixels + d_start_pos + dstrect_offset,
-                   (uint32_t *)src->pixels + s_start_pos + srcrect_offset,
-                   (src->w) * sizeof(uint32_t));
-        }
-    } else if (bits_per_pixel == 8) {
-        for (int row = 0; row < h; ++row) {
-            uint32_t srcrect_offset = row * src->w;
-            uint32_t dstrect_offset = row * dst->w;
-            memcpy((uint8_t *)dst->pixels + d_start_pos + srcrect_offset,
-                  (uint8_t *)src->pixels + s_start_pos + dstrect_offset,
-                  (src->w) * sizeof(uint8_t));  
-        }
-    } else {
-        printf("now unsupported pixel bites %u.\n", bits_per_pixel);
-    }
+		for (int i = 0; i < rect_h; ++i){
+		  int offset1 = (dst_y + i) * dst->w + dst_x;
+		  int offset2 = (src_y + i) * src->w + src_x;
+		  for (int j = 0; j < rect_w; ++j){
+		    dst_pixels[offset1 + j] = src_pixels[offset2 + j];
+		  }
+		}
+	}else if(src->format->BitsPerPixel == 8){
+		//printf("hello \n");
+	    uint8_t* src_pixels = (uint8_t*)src->pixels;
+		uint8_t* dst_pixels = (uint8_t*)dst->pixels;
+
+		int rect_w, rect_h, src_x, src_y, dst_x, dst_y;
+		if (srcrect){
+		  rect_w = srcrect->w; rect_h = srcrect->h;
+		  src_x = srcrect->x; src_y = srcrect->y;
+		}else {
+		  rect_w = src->w; rect_h = src->h;
+		  src_x = 0; src_y = 0;
+		}
+		if (dstrect){
+		  dst_x = dstrect->x, dst_y = dstrect->y;
+		}else {
+		  dst_x = 0; dst_y = 0;
+		}
+
+		for (int i = 0; i < rect_h; ++i){
+		  int offset1 = (dst_y + i) * dst->w + dst_x;
+		  int offset2 = (src_y + i) * src->w + src_x;
+ 		  for (int j = 0; j < rect_w; ++j){
+			dst_pixels[offset1 + j] = src_pixels[offset2 + j];
+		  }
+		}
+	}else{
+		printf("In [video.c][SDL_BlitSurface] : Invalid BitsPerPixel\n");
+		assert(0);
+	}
 }
 
+// 往画布的指定矩形区域中填充指定的颜色
 void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
-    int32_t start_pos = 0;
-    uint32_t sf_row_num = dst->h;
-    uint32_t sf_col_num = dst->w;
-    uint32_t rec_row_num = dst->h;
-    uint32_t rec_col_num = dst->w;
-    if (dstrect) {
-        start_pos = dstrect->x + dstrect->y * dst->w;
-        rec_row_num = dstrect->h;
-        rec_col_num = dstrect->w;
-    }
+  uint32_t *pixels = (uint32_t *)dst->pixels;
+  int rect_h, rect_w, rect_x, rect_y;
 
-    uint8_t bits_per_pixel = dst->format->BitsPerPixel;
-    if (bits_per_pixel == 32) {
-        for (int row = 0; row < rec_row_num; ++row)
-            memset((uint32_t *)dst->pixels + start_pos + row * sf_col_num,
-                   color, rec_col_num * sizeof(uint32_t));
-    } else if (bits_per_pixel == 8) {
-        for (int row = 0; row < rec_row_num; ++row)
-            memset((uint8_t *)dst->pixels + start_pos + row * sf_col_num,
-                    color, rec_col_num * sizeof(uint8_t));
-    } else {
-        printf("unsupported pixel bites %d!\n", dst->format->BitsPerPixel);
+  if (dstrect == NULL){
+    rect_w = dst->w;
+    rect_h = dst->h;
+    rect_x = 0;
+    rect_y = 0;
+  }else {
+    rect_w = dstrect->w;
+    rect_h = dstrect->h;
+    rect_x = dstrect->x;
+    rect_y = dstrect->y;
+  }
+  //printf("%d %d %d %d\n",rect_h,rect_w,rect_x,rect_y);
+  for (int i = 0; i < rect_h; ++i){
+  	int offset = (rect_y + i) * dst->w + rect_x;
+    for (int j = 0; j < rect_w; ++j){
+      pixels[offset + j] = color; //pixels[(rect_y + i) * dst_w + rect_x + j] = color;
     }
+  }
 }
 
 // 将画布中的指定矩形区域同步到屏幕上.
@@ -103,12 +122,10 @@ void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
                             s->pixels[start_pos + 4 * offset + 1] << 8 |
                             s->pixels[start_pos + 4 * offset]);
             } else if (bits_per_pixel == 8) {
-                /*
                 SDL_Color rgba_color =
                     s->format->palette->colors[s->pixels[start_pos + offset]];
                 buf[i++] = rgba_color.a << 24 | rgba_color.r << 16 |
                             rgba_color.g << 8 | rgba_color.b;
-                */
             } else {
                 printf("now unsupported pixel bites %u.\n",
                         bits_per_pixel);
