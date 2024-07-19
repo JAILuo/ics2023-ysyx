@@ -70,8 +70,8 @@ void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
     assert(w > 0 && w <= screen_w);
     assert(h > 0 && y <= screen_h);
     
-    x += (screen_w - canvas_w) / 2;
-    y += (screen_h - canvas_h) / 2;
+    //x += (screen_w - canvas_w) / 2;
+    //y += (screen_h - canvas_h) / 2;
     // Directly modify the canvas offset coordinates on x, y
     // Or define a reference variable
     // int ref_x, ref_y; Adjust here, then add to x,y
