@@ -1,5 +1,6 @@
 #include <proc.h>
 #include <elf.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <fs.h>
 
@@ -48,7 +49,7 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     Elf_Phdr ph[eh.e_phnum];
     fs_lseek(fd, eh.e_phoff, SEEK_SET);
     fs_read(fd, ph, sizeof(Elf_Phdr) * eh.e_phnum);
-    for (int i = 0; i < eh.e_phnum; i++) {
+    for (size_t i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type == PT_LOAD) {
             fs_lseek(fd, ph[i].p_offset, SEEK_SET);
             // vaddr or paddr？

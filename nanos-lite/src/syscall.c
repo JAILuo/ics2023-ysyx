@@ -1,6 +1,9 @@
 #include <common.h>
+#include <proc.h>
 #include "syscall.h"
 #include <sys/time.h>
+    
+void naive_uload(PCB *pcb, const char *filename);
 
 const char *syscall_name[] = {
     [SYS_exit] = "exit",
@@ -62,16 +65,17 @@ void yield();
 void halt(int code);
 void putch(char ch);
 
-int sys_yield() {
+static int sys_yield() {
     yield();
     return 0;
 }
 
-void sys_exit(int code) {
-    halt(code);
+static void sys_exit(int code) {
+    naive_uload(NULL, "/bin/menu");
+    //halt(code);
 }
 
-int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
+static int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
     /* see manual: man gettimeofday */
     assert(tv != NULL);
     uint64_t us = 0;
@@ -80,6 +84,10 @@ int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
     tv->tv_usec = us % 1000000;
     return 0;
 }
+static void sys_execve(Context *c) {
+    naive_uload(NULL, (const char *)c->GPR2);
+}
+
 
 void do_syscall(Context *c) {
   uintptr_t a[4];
@@ -98,6 +106,7 @@ void do_syscall(Context *c) {
     case SYS_lseek: c->GPRx = fs_lseek(a[1], a[2], a[3]); break;
     case SYS_brk: c->GPRx = 0; break;
     case SYS_gettimeofday: c->GPRx = sys_gettimeofday((struct timeval *)a[1], (struct timezone *)a[2]); break;
+    case SYS_execve: sys_execve(c); break;
     default: panic("Unhandled syscall ID = %d", a[0]);
   }
   strace();

@@ -34,8 +34,6 @@
 #include "utils.h"
 #include <memory/vaddr.h>
 #include <debug.h>
-/* 为什么写成这个就可以？ */
-/* 默认搜索 src 目录下的文件/目录？ */
 
 static int is_batch_mode = false;
 
