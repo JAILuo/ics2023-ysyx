@@ -8,8 +8,8 @@
 #endif
 
 struct Context {
-  uintptr_t gpr[NR_REGS];
-  uintptr_t mcause, mstatus, mepc;
+  uintptr_t gpr[NR_REGS]; // 32
+  uintptr_t mcause, mstatus, mepc;  // 3
   void *pdir;
 };
 

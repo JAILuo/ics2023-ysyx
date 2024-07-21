@@ -35,7 +35,7 @@ static void restart() {
   
   /* initialize mstatus */
   //cpu.csr.mstatus = 0xa00001800;
-  cpu.csr.mstatus = 0x000001800;
+  cpu.csr.mstatus = 0x00001800;
 }
 
 void init_isa() {

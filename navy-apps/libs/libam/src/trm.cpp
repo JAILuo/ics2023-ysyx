@@ -2,7 +2,8 @@
 
 Area heap;
 
-#define __riscv__
+//#define __riscv__
+#define __X86__
 
 #if defined(__X86__)
 # define nemu_trap(code) asm volatile ("int3" : :"a"(code))

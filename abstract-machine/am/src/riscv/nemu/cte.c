@@ -14,7 +14,7 @@ Context* __am_irq_handle(Context *c) {
                 } else if (c->GPR1 >= 0 && c->GPR1 <= 19){ // system call (include sys_yield)
                 	ev.event = EVENT_SYSCALL; c->mepc += 4;   
             	} else {
-                	printf("unknown type ");
+                	printf("unknown exception event\n");
             	}
             break;
         default: ev.event = EVENT_ERROR; break;
@@ -40,7 +40,11 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
 }
 
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
-  return NULL;
+    void *stack_end = kstack.end;
+    Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
+    base->mepc = (uintptr_t)entry;
+    base->gpr[10] = (uintptr_t)arg;
+    return base;
 }
 
 void yield() {

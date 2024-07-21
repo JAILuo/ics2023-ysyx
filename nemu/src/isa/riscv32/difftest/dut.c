@@ -56,14 +56,13 @@ bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
          CHECK_GPR(i);
      }
 
-     for (i = 0; i < reg_num; i++) {
-        PRINT_REF_GPR(i);
-     }
      CHECK_REG(csr.mcause, "mcause");
      CHECK_REG(csr.mstatus, "mstatus");
      CHECK_REG(csr.mepc, "mepc");
      CHECK_REG(csr.mtvec, "mtvec");
-     
+     for (i = 0; i < reg_num; i++) {
+        PRINT_REF_GPR(i);
+     }
      return is_same;
 }
 void isa_difftest_attach() {
