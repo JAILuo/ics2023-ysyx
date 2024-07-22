@@ -42,8 +42,10 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
     void *stack_end = kstack.end;
     Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
+    // just pass the difftest
+    base->mstatus = 0x1800;
     base->mepc = (uintptr_t)entry;
-    base->gpr[10] = (uintptr_t)arg;
+    base->gpr[10] = (uintptr_t)arg; // a0
     return base;
 }
 

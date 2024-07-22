@@ -39,15 +39,13 @@ void *malloc(size_t size) {
   // Therefore do not call panic() here, else it will yield a dead recursion:
   //   panic() -> putchar() -> (glibc) -> malloc() -> panic()
 #if !(defined(__ISA_NATIVE__) && defined(__NATIVE_USE_KLIB__))
-    static char *start_addr = NULL;
-    static bool is_init = false;
-    if (!is_init) {
-        //start_addr = heap.start;
-        start_addr = (void*)ROUNDUP(heap.start, 4);
-        is_init = true;
+    static void *last_addr = NULL;
+    if (!last_addr) {
+        last_addr = (void*)ROUNDUP(heap.start, 4);
     }
-    char *old = start_addr;
-    start_addr += size;
+    size_t size_adj = size & 0xF ? (size & ~(size_t)0xF) + 0x10 : size;
+    void *old = last_addr;
+    last_addr = (uint8_t *)last_addr + size_adj;
     return old;
 #endif
     return NULL;

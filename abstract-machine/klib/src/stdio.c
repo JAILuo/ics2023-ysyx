@@ -19,7 +19,7 @@ static void reverse(char *start, int len) {
 }
 */
 
-int itoa(int n, char *out, int base) {
+int my_itoa(int n, char *out, int base) {
     assert(out && base >= 2 && base <= 36);
     if (n == INT_MIN) {
         // INT_MIN is a special case, needs special handling
@@ -64,7 +64,7 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
     } else {
       switch (*(++fmt)) {
       case '%': *out = *fmt; ++out; break;
-      case 'd': out += itoa(va_arg(ap, int), out, 10); break;
+      case 'd': out += my_itoa(va_arg(ap, int), out, 10); break;
       case 's':
         str = va_arg(ap, char*);
         while (*str)
@@ -106,7 +106,7 @@ int sprintf(char *out, const char *fmt, ...) {
             switch (*(++fmt)) {
             case '%': *out = *fmt; out++; break;
             case 'd':
-                out += itoa(va_arg(args, int), out, 10); break;
+                out += my_itoa(va_arg(args, int), out, 10); break;
             case 's':
                 str = va_arg(args, char*);
                 while (*str)
