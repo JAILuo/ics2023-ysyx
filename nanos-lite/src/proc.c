@@ -1,8 +1,9 @@
+#include <stdint.h>
 #include <proc.h>
 
 #define MAX_NR_PROC 4
 
-void naive_uload(PCB *pcb, const char *filename);
+uintptr_t naive_uload(PCB *pcb, const char *filename);
 
 static PCB pcb[MAX_NR_PROC] __attribute__((used)) = {};
 static PCB pcb_boot = {};
@@ -29,15 +30,30 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
     pcb->cp = kcontext(stack, entry, arg);
 }
 
-void init_proc() {
-  context_kload(&pcb[0], hello_fun, "123");
-  context_kload(&pcb[1], hello_fun, "456");
-  switch_boot_pcb();
+void context_uload(PCB *pcb, const char *process_name) {
+    uintptr_t entry = naive_uload(pcb, process_name);
+    Area stack = {
+        .start = heap.end - STACK_SIZE,
+        .end   = heap.end
+    };
+    Log("name: %s", process_name);
+    Log("entry: %d", entry);
+    Log("stack.start: %d, stack.end: %d", stack.start, stack.end);
 
+    pcb->cp = ucontext(&pcb->as, stack, (void *)entry);
+    pcb->cp->GPRx = (uintptr_t)heap.end;
+}
+
+void init_proc() {
   Log("Initializing processes...");
 
+  context_kload(&pcb[0], hello_fun, "123");
+  //context_uload(&pcb[0], "/bin/hello");
+  context_uload(&pcb[1], "/bin/pal");
+  switch_boot_pcb();
+
   // load program here
-  //naive_uload(NULL, "/bin/menu");
+  //naive_uload(NULL, "/bin/pal");
   //naive_uload(NULL, "/bin/bmp-test");
 }
 

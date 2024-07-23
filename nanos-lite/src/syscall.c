@@ -1,9 +1,10 @@
 #include <common.h>
 #include <proc.h>
 #include "syscall.h"
+#include <stdint.h>
 #include <sys/time.h>
     
-void naive_uload(PCB *pcb, const char *filename);
+uintptr_t naive_uload(PCB *pcb, const char *filename);
 
 const char *syscall_name[] = {
     [SYS_exit] = "exit",

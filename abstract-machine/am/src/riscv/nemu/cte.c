@@ -11,7 +11,9 @@ Context* __am_irq_handle(Context *c) {
           	case 0xb:
             	if (c->GPR1 == -1) { // YIELD
                     ev.event = EVENT_YIELD; c->mepc += 4;
-                } else if (c->GPR1 >= 0 && c->GPR1 <= 19){ // system call (include sys_yield)
+                } else if (c->GPR1 >= 0 && c->GPR1 <= 19){ 
+                    // system call (include sys_yield)
+                    // NR_SYSCALL:20
                 	ev.event = EVENT_SYSCALL; c->mepc += 4;   
             	} else {
                 	printf("unknown exception event\n");
