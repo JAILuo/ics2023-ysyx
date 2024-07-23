@@ -9,6 +9,7 @@ _start:
   // See amd64 ABI manual for more details
   andq $0xfffffffffffffff0, %rsp
   movq %rax, %rdi
+  movq %rax, %rsp
   call call_main
 
 #elif defined(__ISA_X86_64__)
