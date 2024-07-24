@@ -11,9 +11,11 @@ size_t get_ramdisk_size();
 #ifdef __LP64__
 # define Elf_Ehdr Elf64_Ehdr
 # define Elf_Phdr Elf64_Phdr
+char magic[16] = {0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 #else
 # define Elf_Ehdr Elf32_Ehdr
 # define Elf_Phdr Elf32_Phdr
+char magic[16] = {0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 #endif
 
 #if defined(__ISA_AM_NATIVE__)
@@ -41,7 +43,9 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
 
     Elf_Ehdr eh;
     fs_read(fd, &eh, sizeof(Elf_Ehdr));
-    assert(*(uint32_t *)eh.e_ident == 0x464c457f); //little endian 7f 45 4c 46
+
+    // check magic number
+    for (int i = 0; i < 16; i++) assert(magic[i] == eh.e_ident[i]);
 
     // check machine  
     assert(eh.e_machine == EXPECT_TYPE);
@@ -80,24 +84,22 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
 
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
     uintptr_t entry = loader(pcb, filename);
+    // create new kernel stack for new process
     Area stack = {
         .start = pcb->stack,
         .end   = pcb->stack + STACK_SIZE
     };
 
-    // kernel stack
     Log("process name: %s", filename);
     Log("entry: %p", entry);
     Log("stack.start: %p, stack.end: %p", stack.start, stack.end);
 
-    // create user context
+    // create new const for new process
     pcb->cp = ucontext(&pcb->as, stack, (void *)entry);
 
 
-    // new process user stack
+    // create new user stack for new process
     void *new_process_stack = new_page(8); // has beend aligined
-    size_t space_count = 0;
-
 
     // begin base in ucontext(Contex structure below) ? some question 
     int envpc = 0;
@@ -110,6 +112,7 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     }
 
     // uintptr_t for portability
+    size_t space_count = 0;
     space_count += sizeof(uintptr_t); // store argc
     space_count += sizeof(uintptr_t) * (argc + 1); // store argv
     space_count += sizeof(uintptr_t) * (envpc + 1); // store envp
@@ -139,8 +142,8 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     char *tmp_envp[envpc];
     for (int i = 0; i < argc; i++) {
         strcpy(string_area, argv[i]);
-        printf("string_area: %s\n", string_area + i);
-        printf("argv[%d]:%s\n", i, argv[i]);
+        //printf("string_area: %s\n", string_area + i);
+        //printf("argv[%d]:%s\n", i, argv[i]);
         tmp_argv[i] = string_area;
         string_area += strlen((argv[i]) + 1);
     }

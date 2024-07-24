@@ -26,10 +26,11 @@ void hello_fun(void *arg) {
 
 void init_proc() {
   Log("Initializing processes...");
-  char *argv[] = {"/bin/pal", "--skip", NULL};
-  context_kload(&pcb[0], hello_fun, "A");
+  //char *argv_pal[] = {"/bin/pal", "--skip", NULL};
+  char *argv_exec_test[] = {"/bin/exec-test", NULL};
+  context_uload(&pcb[0], "/bin/exec-test", argv_exec_test, NULL);
+  //context_kload(&pcb[1], hello_fun, "A");
   //context_uload(&pcb[0], "/bin/hello");
-  context_uload(&pcb[1], "/bin/pal", argv, NULL);
   switch_boot_pcb();
 
   // load program here

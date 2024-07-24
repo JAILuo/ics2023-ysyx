@@ -62,6 +62,9 @@ size_t fs_write(int fd, const void *buf, size_t len);
 size_t fs_lseek(int fd, size_t offset, int whence);
 int fs_close(int fd);
 
+void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]);
+void switch_boot_pcb();
+
 void yield();
 void halt(int code);
 void putch(char ch);
@@ -85,10 +88,16 @@ static int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
     tv->tv_usec = us % 1000000;
     return 0;
 }
-static void sys_execve(Context *c) {
-    naive_uload(NULL, (const char *)c->GPR2);
-}
 
+extern PCB *current;
+static int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
+    printf("in sys_execve. filename:%s\n", fname);
+    if (fname == NULL) return -1;
+    context_uload(current, fname, argv, envp);
+    switch_boot_pcb();
+    yield();
+    return 0;
+}
 
 void do_syscall(Context *c) {
   uintptr_t a[4];
@@ -107,7 +116,7 @@ void do_syscall(Context *c) {
     case SYS_lseek: c->GPRx = fs_lseek(a[1], a[2], a[3]); break;
     case SYS_brk: c->GPRx = 0; break;
     case SYS_gettimeofday: c->GPRx = sys_gettimeofday((struct timeval *)a[1], (struct timezone *)a[2]); break;
-    case SYS_execve: sys_execve(c); break;
+    case SYS_execve: c->GPRx = sys_execve((const char *)c->GPR2, (char *const*)c->GPR3, (char *const*)c->GPR4); break;
     default: panic("Unhandled syscall ID = %d", a[0]);
   }
   strace();
