@@ -6,127 +6,209 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
-/*
-static void reverse(char *start, int len) {
-    char *end = start + len - 1;
-    while (start < end) {
-        char temp = *start;
-        *start = *end;
-        *end = temp;
-        start++;
-        end--;
-    }
-}
-*/
+typedef void (*putter_t)(char ch, void *buf, size_t idx, size_t maxlen);
 
-int my_itoa(int n, char *out, int base) {
-    assert(out && base >= 2 && base <= 36);
-    if (n == INT_MIN) {
-        // INT_MIN is a special case, needs special handling
-        strcpy(out, "-2147483648");
-        return 11;
-    }
-
-    int len = 0;
-    bool is_neg = n < 0;
-    if (is_neg) {
-        n = -n;
-    }
-    char buffer[33]; // Enough for 32-bit int base 2 to base 36
-    char *ptr = &buffer[sizeof(buffer) - 1];
-    *ptr = '\0';
-
-    do {
-        int digit = n % base;
-        *--ptr = (digit < 10) ? '0' + digit : 'a' + (digit - 10);
-        len++;
-    } while ((n /= base) != 0);
-
-    if (is_neg) {
-        *--ptr = '-';
-        len++;
-    }
-
-    strcpy(out, ptr);
-    return len;
+static void putter_out_(char ch, void *buf, size_t idx, size_t maxlen) {
+  (void)buf;
+  (void)idx;
+  (void)maxlen;
+  if (ch) {
+    putch(ch);
+  }
 }
 
-int vsprintf(char *out, const char *fmt, va_list ap) {
-    assert(out);
-    assert(fmt);
-  char *start = out;
-  char *str = NULL;
+static void putter_buf_(char ch, void *buf, size_t idx, size_t maxlen) {
+  if (idx < maxlen) {
+    ((char *)buf)[idx] = ch;
+  }
+}
 
-  for (; *fmt != '\0'; ++fmt) {
+static void reverse_(char *str, int length) {
+  int start = 0;
+  int end = length - 1;
+  while (start < end) {
+    str[start] ^= str[end];
+    str[end] ^= str[start];
+    str[start] ^= str[end];
+    end--;
+    start++;
+  }
+}
+
+static void put_literal_(putter_t put, void *buf, const char *str, size_t *p_idx, size_t maxlen) {
+  while (*str != '\0') {
+    put(*str, buf, *p_idx, maxlen);
+    str++;
+    (*p_idx)++;
+  }
+}
+
+static void
+itoa_(putter_t put, char *buf, int num, int base, size_t *p_idx, size_t maxlen, int zpad_width) {
+  bool is_neg = false;
+  static char str[32] = {0};
+  size_t idx = 0;
+  zpad_width = zpad_width <= 0 ? 1 : zpad_width;
+  if (num < 0 && base == 10) {
+    is_neg = true;
+    num = -num;
+  }
+  while (num != 0) {
+    int rem = num % base;
+    str[idx++] = (rem > 9) ? (rem - 10) + 'a' : rem + '0';
+    num /= base;
+  }
+  while (idx < zpad_width - (is_neg ? 1 : 0)) {
+    str[idx++] = '0';
+  }
+  if (is_neg) {
+    str[idx++] = '-';
+  }
+  reverse_(str, idx);
+  for (size_t i = 0; i < idx; i++) {
+    put(str[i], buf, (*p_idx)++, maxlen);
+  }
+}
+
+static void utoa_(putter_t put,
+                  char *buf,
+                  unsigned int num,
+                  int base,
+                  size_t *p_idx,
+                  size_t maxlen,
+                  int zpad_width) {
+  static char str[32] = {0};
+  size_t idx = 0;
+  zpad_width = zpad_width <= 0 ? 1 : zpad_width;
+  while (num != 0) {
+    unsigned int rem = num % base;
+    str[idx++] = (rem > 9) ? (rem - 10) + 'a' : rem + '0';
+    num /= base;
+  }
+  while (idx < zpad_width) {
+    str[idx++] = '0';
+  }
+  reverse_(str, idx);
+  for (size_t i = 0; i < idx; i++) {
+    put(str[i], buf, (*p_idx)++, maxlen);
+  }
+}
+
+static int vsnprintf_(putter_t put, char *buf, const size_t maxlen, const char *fmt, va_list ap) {
+  size_t idx = 0;
+
+  while (*fmt != '\0') {
     if (*fmt != '%') {
-      *out = *fmt;
-      ++out;
-    } else {
-      switch (*(++fmt)) {
-      case '%': *out = *fmt; ++out; break;
-      case 'd': out += my_itoa(va_arg(ap, int), out, 10); break;
-      case 's':
-        str = va_arg(ap, char*);
-        while (*str)
-            *out++ = *str++;
+      put(*fmt, buf, idx++, maxlen);
+      fmt++;
+      continue;
+    }
+    fmt++;
+
+    int zpad_width = 0;
+
+    switch (*fmt) {
+      case '0':
+        zpad_width = atoi(++fmt);
+        while (*fmt >= '0' && *fmt <= '9') {
+          fmt++;
+        }
+        break;
+      default: break;
+    }
+
+    switch (*fmt) {
+      case 's': {
+        char *p = va_arg(ap, char *);
+        while (*p != '\0') {
+          put(*(p++), buf, idx++, maxlen);
+        }
+        fmt++;
+        break;
+      }
+      case 'd': {
+        int x = va_arg(ap, int);
+        itoa_(put, buf, x, 10, &idx, maxlen, zpad_width);
+        fmt++;
+        break;
+      }
+      case 'u': {
+        unsigned int u = va_arg(ap, unsigned int);
+        utoa_(put, buf, u, 10, &idx, maxlen, zpad_width);
+        fmt++;
+        break;
+      }
+      case 'x': {
+        unsigned int u = va_arg(ap, unsigned int);
+        utoa_(put, buf, u, 16, &idx, maxlen, zpad_width);
+        fmt++;
+        break;
+      }
+      case 'p': {
+        uintptr_t u = va_arg(ap, uintptr_t);
+        if (u == (uintptr_t)NULL) {
+          put_literal_(put, buf, "(null)", &idx, maxlen);
+        } else {
+          put_literal_(put, buf, "0x", &idx, maxlen);
+          utoa_(put, buf, u, 16, &idx, maxlen, zpad_width);
+        }
+        fmt++;
+        break;
+      }
+      case 'c': {
+        char ch = (char)va_arg(ap, int);
+        put(ch, buf, idx++, maxlen);
+        fmt++;
+        break;
+      }
+      default: {
+        put(*fmt, buf, idx++, maxlen);
+        fmt++;
         break;
       }
     }
   }
 
-  *out = '\0';
-  return out - start;
-}
-
-int printf(const char *fmt, ...) {
-    char buf[2048];
-    va_list args;
-    va_start(args, fmt);
-    int len = vsprintf(buf, fmt, args);
-    va_end(args);
-    for (int i = 0; i < len; i++) {
-        //putch('A');
-        putch(buf[i]);
-    }
-    return 0; // 返回值通常为写入的字符数，这里简化处理
-}
-
-int sprintf(char *out, const char *fmt, ...) {
-    assert(out);
-    assert(fmt);
-    va_list args;
-    va_start(args, fmt);
-    
-    char *start = (char *)fmt;
-    char *str = NULL;
-    for (; *fmt != '\0'; fmt++) {
-        if (*fmt != '%') {
-            *out++ = *fmt;
-        } else {
-            switch (*(++fmt)) {
-            case '%': *out = *fmt; out++; break;
-            case 'd':
-                out += my_itoa(va_arg(args, int), out, 10); break;
-            case 's':
-                str = va_arg(args, char*);
-                while (*str)
-                    *out++ = *str++;
-                break;
-            default: *out++ = *fmt; break;
-            }
-        }
-    }
-    *out = '\0';
-    va_end(args);
-    return out - start;
-}
-
-int snprintf(char *out, size_t n, const char *fmt, ...) {
-  panic("Not implemented");
+  put(0, buf, idx < maxlen ? idx : maxlen - 1, maxlen);
+  return (int)idx;
 }
 
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
-  panic("Not implemented");
+  return vsnprintf_(putter_buf_, out, n, fmt, ap);
+}
+
+int snprintf(char *out, size_t n, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int result = vsnprintf(out, n, fmt, args);
+  va_end(args);
+  return result;
+}
+
+int vsprintf(char *out, const char *fmt, va_list ap) {
+  return vsnprintf(out, (size_t)-1, fmt, ap);
+}
+
+int sprintf(char *out, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int result = vsprintf(out, fmt, args);
+  va_end(args);
+  return result;
+}
+
+int printf(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  char buf[1];
+  int result = vsnprintf_(putter_out_, buf, (size_t)-1, fmt, args);
+  va_end(args);
+  return result;
+}
+
+int putchar(int ch) {
+  putch((char)ch);
+  return ch;
 }
 
 #endif

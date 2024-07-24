@@ -78,18 +78,96 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
     pcb->cp = kcontext(stack, entry, arg);
 }
 
-void context_uload(PCB *pcb, const char *process_name) {
-    uintptr_t entry = loader(pcb, process_name);
+void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
+    uintptr_t entry = loader(pcb, filename);
     Area stack = {
-        .start = heap.end - STACK_SIZE,
-        .end   = heap.end
+        .start = pcb->stack,
+        .end   = pcb->stack + STACK_SIZE
     };
-    Log("name: %s", process_name);
-    Log("entry: %d", entry);
-    Log("stack.start: %d, stack.end: %d", stack.start, stack.end);
 
+    // kernel stack
+    Log("process name: %s", filename);
+    Log("entry: %p", entry);
+    Log("stack.start: %p, stack.end: %p", stack.start, stack.end);
+
+    // create user context
     pcb->cp = ucontext(&pcb->as, stack, (void *)entry);
-    pcb->cp->GPRx = (uintptr_t)heap.end;
-}
 
+
+    // new process user stack
+    void *new_process_stack = new_page(8); // has beend aligined
+    size_t space_count = 0;
+
+
+    // begin base in ucontext(Contex structure below) ? some question 
+    int envpc = 0;
+    int argc = 0;
+    while (envp != NULL && envp[envpc] != NULL) {
+        envpc++; 
+    }
+    while (argv != NULL && argv[argc] != NULL) {
+        argc++;
+    }
+
+    // uintptr_t for portability
+    space_count += sizeof(uintptr_t); // store argc
+    space_count += sizeof(uintptr_t) * (argc + 1); // store argv
+    space_count += sizeof(uintptr_t) * (envpc + 1); // store envp
+    for (int i = 0; i < envpc; ++i) { 
+        space_count += (strlen((const char *)envp[i]) + 1);  // the length of each element in envp[]
+    }
+    for (int i = 0; i < argc; ++i) { 
+        space_count += (strlen((const char *)argv[i]) + 1);  // the length of each element in envp[]
+    }
+    Log("envpc: %d, argc: %d, space_count: %d", envpc, argc, space_count);
+
+
+    Log("Base before ROUNDUP:%p", new_process_stack - space_count);
+    uintptr_t *base = (uintptr_t *)ROUNDDOWN(new_process_stack - space_count, sizeof(uintptr_t));
+    uintptr_t *base_mem = base;
+    Log("Base after ROUNDUP:%p", base);
+
+
+    *base = argc;
+    base++;
+
+
+    base += (argc + 1) + (envpc + 1); // string area
+    char *string_area = (char *)base;
+    uintptr_t *string_base = (uintptr_t*)base;
+    char *tmp_argv[argc];
+    char *tmp_envp[envpc];
+    for (int i = 0; i < argc; i++) {
+        strcpy(string_area, argv[i]);
+        printf("string_area: %s\n", string_area + i);
+        printf("argv[%d]:%s\n", i, argv[i]);
+        tmp_argv[i] = string_area;
+        string_area += strlen((argv[i]) + 1);
+    }
+
+    for (int i = 0; i < envpc; i++) {
+        strcpy(string_area, envp[i]);
+        tmp_envp[i] = string_area;
+        string_area += strlen((envp[i]) + 1);
+    }
+
+
+    base -= (argc + 1) + (envpc + 1);
+    for (int i = 0; i < argc; i++, base++) {
+        *base = (uintptr_t)tmp_argv[i];
+    }
+    *base = (uintptr_t)NULL; // argv[argc] = NULL
+    base++;
+    
+    for (int i = 0; i < envpc; i++, base++) {
+        *base = (uintptr_t)tmp_envp[i];
+    }
+    *base = (uintptr_t)NULL; // argv[envpc] = NULL
+    base++;
+
+    // Unspecified ...
+    assert(string_base == base);
+
+    pcb->cp->GPRx = (uintptr_t)base_mem;
+}
 
