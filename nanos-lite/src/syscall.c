@@ -90,11 +90,14 @@ static int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
 }
 
 extern PCB *current;
+static int i = 2;
 static int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
     printf("in sys_execve. filename:%s\n", fname);
     if (fname == NULL) return -1;
     context_uload(current, fname, argv, envp);
+    printf("is %d times call apps-main\n", i++);
     switch_boot_pcb();
+    printf("in sys_execve2. filename:%s\n", fname);
     yield();
     return 0;
 }

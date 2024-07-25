@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -97,6 +98,7 @@ int _gettimeofday(struct timeval *tv, struct timezone *tz) {
 }
 
 int _execve(const char *fname, char * const argv[], char *const envp[]) {
+    printf("fname:%s  argv[0]:%s\n", fname, argv[0]);
     return _syscall_((intptr_t)SYS_execve, (intptr_t)fname, (intptr_t)argv, (intptr_t)envp);
 }
 

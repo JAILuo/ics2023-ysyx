@@ -172,7 +172,7 @@ static int decode_exec(Decode *s) {
               ftrace_func_call(s->pc, s->dnpc, false);
             }})
           R(rd) = s->pc + 4);
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, volatile vaddr_t t = s->pc + 4;
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, volatile word_ t = s->pc + 4;
           s->dnpc = (src1 + imm) & ~(word_t)1;
           IFDEF(CONFIG_FTRACE, {
             // note the order of if and else if.
@@ -193,10 +193,11 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   
   /* CSR */
-  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, volatile vaddr_t t = CSRs(imm);
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, volatile word_t t = CSRs(imm);
           CSRs(imm) = src1; R(rd) = t);
-  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, volatile vaddr_t t = CSRs(imm);
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, volatile word_t t = CSRs(imm);
           CSRs(imm) = t | src1; R(rd) = t);
+  // csrrd mulhu also need t like 
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc); 
           IFDEF(CONFIG_ETRACE,etrace_log();));
   INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , I, MRET);

@@ -96,6 +96,7 @@ int ftrace_table_size = 0;
 
 int call_depth = 0;
 
+/*
 TailRecNode *tail_rec_head = NULL; // linklist with head, dynamic allocated
 
 static void init_tail_rec_list() {
@@ -104,8 +105,9 @@ static void init_tail_rec_list() {
 	tail_rec_head->next = NULL;
 }
 
+TailRecNode *node = NULL;
 static void insert_tail_rec(paddr_t pc, int depth) {
-	TailRecNode *node = (TailRecNode *)malloc(sizeof(TailRecNode));
+    node = (TailRecNode *)malloc(sizeof(TailRecNode));
 	node->pc = pc;
 	node->depth = depth;
 	node->next = tail_rec_head->next;
@@ -117,6 +119,7 @@ static void remove_tail_rec() {
 	tail_rec_head->next = node->next;
 	free(node);
 }
+*/
 /* 
  * the tail of recusive optimization code above comes from Internet
  * TODO
@@ -218,7 +221,7 @@ void parse_elf(const char *elf_file) {
 
    get_symbols(fd, sh);
 
-   init_tail_rec_list();
+   //init_tail_rec_list();
 
    close(fd);
 }
@@ -230,30 +233,33 @@ void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
 
     call_depth++;
     int i = find_symbol_func(target, true); 
-    //printf(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
-    log_write(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
+    printf(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
+    //log_write(FMT_WORD ":%*scall [%s@" FMT_WORD "]\n",
            pc,
            CALL_DEPTH, " ",
            //call_depth, " ",
            i >= 0 ? ftrace_tab[i].name : "???",
            target);
+    /*
     if (is_tail) {
 		insert_tail_rec(pc, call_depth-1);
     }
+    */
 }
 
 void ftrace_func_ret(vaddr_t pc) {
     if (!ftrace_tab) return;
 
    int i = find_symbol_func(pc, false);
-   //printf(FMT_WORD ":%*sret [%s]\n",
-   log_write(FMT_WORD ":%*sret [%s]\n",
+   printf(FMT_WORD ":%*sret [%s]\n",
+   //log_write(FMT_WORD ":%*sret [%s]\n",
            pc,
            CALL_DEPTH, " ",
            //call_depth, " ",
            i >=0 ? ftrace_tab[i].name : "???");
     call_depth--;
 
+    /*
     TailRecNode *node = tail_rec_head->next;
 	if (node != NULL) {
 		if (node->depth == call_depth) {
@@ -262,6 +268,7 @@ void ftrace_func_ret(vaddr_t pc) {
 			ftrace_func_ret(ret_target);
 		}
 	}
+    */
 }
 
 

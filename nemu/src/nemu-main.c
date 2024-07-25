@@ -21,7 +21,8 @@ void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();
 extern ftrace_entry *ftrace_tab;
-extern TailRecNode *tail_rec_head;
+//extern TailRecNode *tail_rec_head;
+//extern TailRecNode *node;
 
 int main(int argc, char *argv[]) {
   /* Initialize the monitor. */
@@ -38,9 +39,11 @@ int main(int argc, char *argv[]) {
     free(ftrace_tab);
     ftrace_tab = NULL; // 重置指针，以防野指针问题
   } 
+  /*
   if (tail_rec_head != NULL) {
     free(tail_rec_head);
     tail_rec_head = NULL;
   }
+  */
   return is_exit_status_bad();
 }
