@@ -172,7 +172,7 @@ static int decode_exec(Decode *s) {
               ftrace_func_call(s->pc, s->dnpc, false);
             }})
           R(rd) = s->pc + 4);
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, volatile word_ t = s->pc + 4;
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, volatile word_t t = s->pc + 4;
           s->dnpc = (src1 + imm) & ~(word_t)1;
           IFDEF(CONFIG_FTRACE, {
             // note the order of if and else if.

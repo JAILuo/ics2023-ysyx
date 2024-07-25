@@ -40,9 +40,9 @@ const char *syscall_name[] = {
 
 char *fd_name(int fd);
 static inline void Strace(Context *c, intptr_t type, intptr_t a0, intptr_t a1, intptr_t a2) {
-    #define FORMAT_STRACE "syscall: %s num: %d\n" \
-                          "        reg: a0: %d  a1: %d  a2: %d\n" \
-                          "        ret: %d\n"
+    #define FORMAT_STRACE "syscall: %s num: %d(d)\n" \
+                          "        reg: a0: 0x%x  a1: 0x%x  a2: 0x%x\n" \
+                          "        ret: 0x%x\n"
     const char *file_name = (IS_SYS_OPEN(type)) ? ((const char *)a0) :
                 (IS_SYS_FILE_CALL(type) ? fd_name((int)a0) : "no file"); 
 
@@ -90,14 +90,10 @@ static int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
 }
 
 extern PCB *current;
-static int i = 2;
 static int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
-    printf("in sys_execve. filename:%s\n", fname);
     if (fname == NULL) return -1;
     context_uload(current, fname, argv, envp);
-    printf("is %d times call apps-main\n", i++);
     switch_boot_pcb();
-    printf("in sys_execve2. filename:%s\n", fname);
     yield();
     return 0;
 }

@@ -28,24 +28,23 @@ void init_proc() {
   Log("Initializing processes...");
   //char *argv_pal[] = {"/bin/pal", "--skip", NULL};
   char *envp[] = {NULL};
-  char *argv_exec_test[] = {"/bin/exec-test",  NULL};
-  context_uload(&pcb[0], "/bin/exec-test", argv_exec_test, envp);
+  //char *argv_exec_test[] = {"/bin/exec-test",  NULL};
+  //char *argv_menu[] = {"/bin/menu",  NULL};
+  char *argv_nterm[] = {"/bin/nterm",  NULL};
+  
+  //context_uload(&pcb[0], "/bin/exec-test", argv_exec_test, envp);
   //context_kload(&pcb[1], hello_fun, "A");
   //context_uload(&pcb[0], "/bin/pal", argv_pal, envp);
+  context_uload(&pcb[0], "/bin/nterm", argv_nterm, envp);
   //printf("in init_proc pcb0->cp->mepc:%p\n",pcb[0].cp->mepc);
   switch_boot_pcb();
-
-  // load program here
-  //naive_uload(NULL, "/bin/pal");
-  //naive_uload(NULL, "/bin/bmp-test");
 }
 
 Context* schedule(Context *prev) {
     current->cp = prev;
-    printf("prev->cp:%p\n", current->cp);
-    printf("pcb[0]->cp:%p\n",pcb[0].cp); // 用户栈的cp是存在pcb中的，也就是内核栈中.
+    //printf("prev->cp:%p\n", current->cp);
     current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
-    printf("new->cp:%p\n", current->cp);
+    //printf("new->cp:%p\n", current->cp);
     return current->cp;
 }
 

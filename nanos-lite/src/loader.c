@@ -67,7 +67,6 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     return (uintptr_t)eh.e_entry;
 }
 
-//void naive_uload(PCB *pcb, const char *filename) {
 void naive_uload(PCB *pcb, const char *filename) {
   uintptr_t entry = loader(pcb, filename);
   Log("Jump to entry = %p", entry);
@@ -81,9 +80,8 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
     };
     pcb->cp = kcontext(stack, entry, arg);
     /*
-      Log("kernel context: %p (p=, a0=%p, sp=%p)",
+      Log("kernel context: %p (a0=%p, sp=%p)",
       pcb->cp,
-      //pcb->cp->np,
       (void *)pcb->cp->GPRx,
       (void *)pcb->cp->gpr[2]);
       */
@@ -109,17 +107,12 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     void *new_user_stack = new_page(8); // has beend aligined
 
     // begin base in ucontext(Contex structure below) ? some question 
-    int envpc = 0;
-    int argc = 0;
-    while (envp != NULL && envp[envpc] != NULL) {
-        envpc++; 
-    }
-    while (argv != NULL && argv[argc] != NULL) {
-        argc++;
-    }
+    int envpc = 0, argc = 0;
+    size_t space_count = 0;
+    while (envp != NULL && envp[envpc] != NULL) envpc++; 
+    while (argv != NULL && argv[argc] != NULL) argc++;
 
     // uintptr_t for portability
-    size_t space_count = 0;
     space_count += sizeof(uintptr_t); // store argc
     space_count += sizeof(uintptr_t) * (argc + 1); // store argv
     space_count += sizeof(uintptr_t) * (envpc + 1); // store envp
@@ -139,7 +132,6 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
 
     *base = argc;
-    printf("argc ,,,,in context_kload:%d\n", *base);
     base++;
 
 
@@ -149,47 +141,33 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     char *tmp_argv[argc];
     char *tmp_envp[envpc];
     for (int i = 0; i < argc; i++) {
-        //strcpy(string_area, argv[i]);
         strcpy((char *)string_area, (const char *)&argv[i]);
         memcpy((void *)&tmp_argv[i], (const void *)&argv[i], sizeof(uintptr_t));
-        //printf("string_area: %s\n", string_area + i);
-        //printf("argv[%d]:%s\n", i, argv[i]);
-        //tmp_argv[i] = string_area;
         string_area += strlen((argv[i]) + 1);
     }
 
     for (int i = 0; i < envpc; i++) {
         strcpy((char *)string_area, (const char *)&envp[i]);
         memcpy((void *)&tmp_envp[i], (const void *)&envp[i], sizeof(uintptr_t));
-        //tmp_envp[i] = string_area;
         string_area += strlen((envp[i]) + 1);
     }
 
 
     base -= (argc + 1) + (envpc + 1);
-    for (int i = 0; i < argc; i++) {
+    for (int i = 0; i < argc; i++, base++) {
         memcpy((void *)base, (const void *)&tmp_argv[i], sizeof(uintptr_t));
-        printf("tmp_argv[%d]: %s\n", i, tmp_argv[i]);
-        printf("argv[%d]: %c\n", i, ((char *)base));// 打印出乱码，因为小端序，我只永乐
-        base += 1;
     }
     *base = (uintptr_t)NULL; // argv[argc] = NULL
     base++;
     
-    for (int i = 0; i < envpc; i++) {
+    for (int i = 0; i < envpc; i++, base++) {
         memcpy((void *)base, (const void *)&tmp_envp[i], sizeof(uintptr_t));
-        base += 1;
     }
     *base = (uintptr_t)NULL; // argv[envpc] = NULL
     base++;
 
     // Unspecified ...
     assert(string_base == base);
-
-    printf("user argv:%s\n", argv[0]);
-    if (argc >=2 ) {
-        printf("argv[1]:%s\n",argv[1]);
-    }
 
     pcb->cp->GPRx = (uintptr_t)base_mem;
     /*
