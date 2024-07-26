@@ -52,23 +52,42 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     assert(eh.e_machine == EXPECT_TYPE);
 
     printf("in loader2, filename:%s\n", filename);
-    Elf_Phdr ph[eh.e_phnum];
+    Elf_Phdr *ph = (Elf_Phdr *)malloc(sizeof(Elf_Phdr) * eh.e_phnum);
     fs_lseek(fd, eh.e_phoff, SEEK_SET);
     fs_read(fd, ph, sizeof(Elf_Phdr) * eh.e_phnum);
     printf("in loader3, filename:%s\n", filename);
-    printf("e_phnum:%d\n", eh.e_phnum);
     for (size_t i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type == PT_LOAD) {
+            char *buf_malloc = (char *)malloc(ph[i].p_filesz * sizeof(char) + 1);
             fs_lseek(fd, ph[i].p_offset, SEEK_SET);
+
             printf("in loader4, filename:%s\n", filename);
-            // vaddr or paddr？
-            fs_read(fd, (void *)ph[i].p_vaddr, ph[i].p_memsz);
+            
+            /*
+            fs_read(fd, (void *)ph[i].p_vaddr, ph[i].p_memsz);// vaddr or paddr？
+            
             printf("in loader5, filename:%s\n", filename);
             memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
                    ph[i].p_memsz - ph[i].p_filesz);
             printf("in loader6, filename:%s\n", filename);
+            */
+            fs_read(fd, (void *)buf_malloc, ph[i].p_memsz);// vaddr or paddr？
+            
+            printf("in loader5, filename:%s\n", filename);
+            printf("p_vaddr:%p\n", ph[i].p_vaddr);
+
+            memcpy((void *)(uintptr_t)ph[i].p_vaddr, buf_malloc, ph[i].p_filesz);
+            
+            printf("in loader6, filename:%s\n", filename);
+            memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
+                   ph[i].p_memsz - ph[i].p_filesz);
+
+            free(buf_malloc);
+            buf_malloc = NULL;
         }
     }
+    free(ph);
+    ph = NULL;
 
     fs_close(fd);
     return (uintptr_t)eh.e_entry;
@@ -93,6 +112,21 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
       (void *)pcb->cp->gpr[2]);
       */
 }
+/*
+static size_t get_varargs_size(char *const varargs[], size_t len, size_t sizes[]) {
+  if (varargs == NULL) {
+    return 0;
+  }
+
+  size_t sz_str = 0;
+  for (size_t i = 0; i < len; i++) {
+    const size_t sz = strlen(varargs[i]) + 1;
+    sz_str += sz;
+    sizes[i] = sz;
+  }
+  return sz_str;
+}
+*/
 
 static int test = 1;
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
@@ -128,14 +162,26 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
     // uintptr_t for portability
     space_count += sizeof(uintptr_t); // store argc
+    Log("argc spce_count: %d", space_count);
     space_count += sizeof(uintptr_t) * (argc + 1); // store argv
+    Log("argv spce_count: %d", space_count);
     space_count += sizeof(uintptr_t) * (envpc + 1); // store envp
+    Log("envp spce_count: %d", space_count);
     for (int i = 0; i < envpc; ++i) { 
-        space_count += (strlen((const char *)envp[i]) + 1);  // the length of each element in envp[]
+        Log("envp spce_count: %d , envp[%d] len = %d", space_count, i, (strlen(envp[i]) + 1));
+        space_count += (strlen(envp[i]) + 1);  // the length of each element in envp[]
+        Log("after end envp[%d] spce_count = %d", i, space_count);
     }
     for (int i = 0; i < argc; ++i) { 
-        space_count += (strlen((const char *)argv[i]) + 1);  // the length of each element in envp[]
+        Log("argv spce_count: %d , argv[%d] len =  %d", space_count, i, (strlen(argv[i]) + 1));
+        Log("in strlen..., argv[%d]: %s", i, argv[i]);
+        space_count += (strlen(argv[i]) + 1);  // the length of each element in argv[]
+        Log("after, end argv[%d] spce_count = %d", i, space_count);
     }
+    //size_t argv_sizes[argc];
+    //space_count += get_varargs_size(argv, argc, argv_sizes);
+    //Log("spce_count = %d", space_count);
+
     Log("envpc: %d, argc: %d, space_count: %d", envpc, argc, space_count);
 
 
@@ -145,45 +191,49 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     Log("Base after ROUNDUP:%p", base);
 
 
-    *base = argc;
-    base++;
+    *((int *)base) = (int)argc;
+    base = (uintptr_t *)((char *)base + sizeof(int));
 
 
-    /*
-    base += (argc + 1) + (envpc + 1); // string area
-    char *string_area = (char *)base;
+    // first-level pointer to the address of a string
+    base += (argc + 1) + (envpc + 1);
     uintptr_t *string_base = (uintptr_t*)base;
-    char *tmp_argv[argc];
-    char *tmp_envp[envpc];
     for (int i = 0; i < argc; i++) {
-        strcpy((char *)string_area, (const char *)&argv[i]);
-        memcpy((void *)&tmp_argv[i], (const void *)&argv[i], sizeof(uintptr_t));
-        string_area += strlen((argv[i]) + 1);
+        memcpy((void *)base, (const void *)&argv[i], sizeof(void *));
+        Log("copying argv %p <~ %p -> %s", base, argv[i], argv[i]);
     }
 
     for (int i = 0; i < envpc; i++) {
-        strcpy((char *)string_area, (const char *)&envp[i]);
-        memcpy((void *)&tmp_envp[i], (const void *)&envp[i], sizeof(uintptr_t));
-        string_area += strlen((envp[i]) + 1);
+        memcpy((void *)base, (const void *)&envp[i], sizeof(void *));
+        Log("copying envp %p <~ %p -> %s", base, envp[i], envp[i]);
     }
-    */
 
 
-    //base -= (argc + 1) + (envpc + 1);
+    // second-level pointer that stores the address 
+    // where the string address is stored (the first-level pointer)
+    base -= (argc + 1) + (envpc + 1);
     for (int i = 0; i < argc; i++, base++) {
         memcpy((void *)base, (const void *)&argv[i], sizeof(uintptr_t));
+        Log("argv set: %p -> %p -> %s",
+            base,
+            *(char **)base,
+            *(char **)base == NULL ? "(null)" : *(char **)base);
     }
     *base = (uintptr_t)NULL; // argv[argc] = NULL
     base++;
     
     for (int i = 0; i < envpc; i++, base++) {
         memcpy((void *)base, (const void *)&envp[i], sizeof(uintptr_t));
+        Log("envp set: %p -> %p -> %s",
+            base,
+            *(char **)base,
+            *(char **)base == NULL ? "(null)" : *(char **)base);
     }
     *base = (uintptr_t)NULL; // argv[envpc] = NULL
     base++;
 
     // Unspecified ...
-    //assert(string_base == base);
+    assert(string_base == base);
 
     pcb->cp->GPRx = (uintptr_t)base_mem;
     /*

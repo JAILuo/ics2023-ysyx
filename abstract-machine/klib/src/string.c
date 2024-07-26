@@ -10,8 +10,7 @@ size_t strlen(const char *s) {
     if (s == NULL) return 0;
 
     size_t len = 0;
-    //while (*(s++) != '\0') {
-    while ((s++) != NULL) {
+    while (*(s++) != '\0') {
         len++;
     }
     return len;
@@ -20,7 +19,10 @@ size_t strlen(const char *s) {
 char *strcpy(char *dst, const char *src) {
     char *start = dst; 
 
-    while ((*dst++ = *src++) != '\0');
+    while (*src != '\0') {
+        *(dst++) = *(src++);
+    }
+    *dst = '\0';
     return start;
 }
 

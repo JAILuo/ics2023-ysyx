@@ -7,13 +7,14 @@ int main(int argc, char *argv[], char *envp[]);
 extern char **environ;
 
 void call_main(uintptr_t *args) {
-    uintptr_t *base = args;
+    // char * for portability
+    char *base = (char *)args;
 
     int argc = *((int *)base);
     base += sizeof(int);
 
     char **argv = (char **)base;
-    base += (argc + 1);
+    base += sizeof(char *) * (argc + 1);
 
     char **envp = (char **)base;
     environ = envp;
