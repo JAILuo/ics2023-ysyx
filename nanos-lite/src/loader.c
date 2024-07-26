@@ -39,6 +39,7 @@ size_t fs_lseek(int fd, size_t offset, int whence);
 int fs_close(int fd);
 
 static uintptr_t loader(PCB *pcb, const char *filename) {
+    printf("in loader, filename:%s\n", filename);
     int fd = fs_open(filename, 0, 0);
 
     Elf_Ehdr eh;
@@ -50,16 +51,22 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     // check machine  
     assert(eh.e_machine == EXPECT_TYPE);
 
+    printf("in loader2, filename:%s\n", filename);
     Elf_Phdr ph[eh.e_phnum];
     fs_lseek(fd, eh.e_phoff, SEEK_SET);
     fs_read(fd, ph, sizeof(Elf_Phdr) * eh.e_phnum);
+    printf("in loader3, filename:%s\n", filename);
+    printf("e_phnum:%d\n", eh.e_phnum);
     for (size_t i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type == PT_LOAD) {
             fs_lseek(fd, ph[i].p_offset, SEEK_SET);
+            printf("in loader4, filename:%s\n", filename);
             // vaddr or paddr？
-            fs_read(fd, (void *)(uintptr_t)ph[i].p_vaddr, ph[i].p_memsz);
+            fs_read(fd, (void *)ph[i].p_vaddr, ph[i].p_memsz);
+            printf("in loader5, filename:%s\n", filename);
             memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
                    ph[i].p_memsz - ph[i].p_filesz);
+            printf("in loader6, filename:%s\n", filename);
         }
     }
 
@@ -87,8 +94,16 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
       */
 }
 
+static int test = 1;
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
+    printf("in context_uload, filename:%s\n", filename);
     uintptr_t entry = loader(pcb, filename);
+    printf("in context_uload2, filename:%s\n", filename);
+    if ((test++) == 2 ) {
+        for (int i = 0; i < 2; i++) {
+            printf("in context_uload, argv[%d]: %s\n", i, argv[i]);
+        }
+    }
     // create new kernel stack for new user process
     Area stack = {
         .start = pcb->stack,
@@ -101,7 +116,6 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
     // create new context for new process
     pcb->cp = ucontext(&pcb->as, stack, (void(*)())entry);
-
 
     // create new user stack for new user process
     void *new_user_stack = new_page(8); // has beend aligined
@@ -135,6 +149,7 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     base++;
 
 
+    /*
     base += (argc + 1) + (envpc + 1); // string area
     char *string_area = (char *)base;
     uintptr_t *string_base = (uintptr_t*)base;
@@ -151,23 +166,24 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
         memcpy((void *)&tmp_envp[i], (const void *)&envp[i], sizeof(uintptr_t));
         string_area += strlen((envp[i]) + 1);
     }
+    */
 
 
-    base -= (argc + 1) + (envpc + 1);
+    //base -= (argc + 1) + (envpc + 1);
     for (int i = 0; i < argc; i++, base++) {
-        memcpy((void *)base, (const void *)&tmp_argv[i], sizeof(uintptr_t));
+        memcpy((void *)base, (const void *)&argv[i], sizeof(uintptr_t));
     }
     *base = (uintptr_t)NULL; // argv[argc] = NULL
     base++;
     
     for (int i = 0; i < envpc; i++, base++) {
-        memcpy((void *)base, (const void *)&tmp_envp[i], sizeof(uintptr_t));
+        memcpy((void *)base, (const void *)&envp[i], sizeof(uintptr_t));
     }
     *base = (uintptr_t)NULL; // argv[envpc] = NULL
     base++;
 
     // Unspecified ...
-    assert(string_base == base);
+    //assert(string_base == base);
 
     pcb->cp->GPRx = (uintptr_t)base_mem;
     /*

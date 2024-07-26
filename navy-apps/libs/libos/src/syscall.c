@@ -98,6 +98,10 @@ int _gettimeofday(struct timeval *tv, struct timezone *tz) {
 }
 
 int _execve(const char *fname, char * const argv[], char *const envp[]) {
+    printf("in libos _execve, fname: %s\n", fname);
+    for(int i = 0; i < 2; i++) {                                                                                          
+        printf("in libos _execve, argv[%d]: %s\n", i, argv[i]);
+    }
     return _syscall_((intptr_t)SYS_execve, (intptr_t)fname, (intptr_t)argv, (intptr_t)envp);
 }
 

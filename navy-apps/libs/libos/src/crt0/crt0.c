@@ -8,14 +8,16 @@ extern char **environ;
 
 void call_main(uintptr_t *args) {
     uintptr_t *base = args;
+
     int argc = *((int *)base);
-    base++;
+    base += sizeof(int);
 
     char **argv = (char **)base;
     base += (argc + 1);
 
     char **envp = (char **)base;
     environ = envp;
+
     exit(main(argc, argv, envp));
     assert(0);
 }
