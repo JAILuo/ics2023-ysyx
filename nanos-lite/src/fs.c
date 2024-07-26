@@ -54,8 +54,8 @@ int fs_open(const char *pathname, int flags, int mode) {
             return i;
         }
     }
-    panic("No such file: %s\n", pathname);
-    return 0;
+    //panic("No such file: %s\n", pathname);
+    return -1;
 }
 
 size_t fs_read(int fd, void *buf, size_t len) {
@@ -105,7 +105,7 @@ size_t fs_lseek(int fd, size_t offset, int whence) {
         file_table[fd].open_offset = offset;
         break;
     case SEEK_CUR:
-        assert(cur_offset + offset <= file_table[fd].size);
+        assert(file_table[fd].open_offset + offset <= file_table[fd].size);
         file_table[fd].open_offset += offset;
         break;
     case SEEK_END:

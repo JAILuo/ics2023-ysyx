@@ -39,7 +39,6 @@ size_t fs_lseek(int fd, size_t offset, int whence);
 int fs_close(int fd);
 
 static uintptr_t loader(PCB *pcb, const char *filename) {
-    printf("in loader, filename:%s\n", filename);
     int fd = fs_open(filename, 0, 0);
 
     Elf_Ehdr eh;
@@ -51,26 +50,21 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     // check machine  
     assert(eh.e_machine == EXPECT_TYPE);
 
-    printf("in loader2, filename:%s\n", filename);
     Elf_Phdr *ph = (Elf_Phdr *)malloc(sizeof(Elf_Phdr) * eh.e_phnum);
     fs_lseek(fd, eh.e_phoff, SEEK_SET);
     fs_read(fd, ph, sizeof(Elf_Phdr) * eh.e_phnum);
-    printf("in loader3, filename:%s\n", filename);
     for (size_t i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type == PT_LOAD) {
             char *buf_malloc = (char *)malloc(ph[i].p_filesz * sizeof(char) + 1);
             fs_lseek(fd, ph[i].p_offset, SEEK_SET);
 
-            printf("in loader4, filename:%s\n", filename);
-            
             fs_read(fd, (void *)buf_malloc, ph[i].p_memsz);// vaddr or paddr？
             
-            printf("in loader5, filename:%s\n", filename);
-            printf("p_vaddr:%p\n", ph[i].p_vaddr);
+            //printf("in loader1, filename:%s\n", filename);
 
             memcpy((void *)(uintptr_t)ph[i].p_vaddr, buf_malloc, ph[i].p_filesz);
             
-            printf("in loader6, filename:%s\n", filename);
+            //printf("in loader2, filename:%s\n", filename);
             memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
                    ph[i].p_memsz - ph[i].p_filesz);
 
@@ -107,14 +101,13 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
 
 static int test = 1;
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
-    printf("in context_uload, filename:%s\n", filename);
-    uintptr_t entry = loader(pcb, filename);
-    printf("in context_uload2, filename:%s\n", filename);
-    if ((test++) == 2 ) {
+    printf("name:%s\n", filename);
+    if (test++ == 2) {
         for (int i = 0; i < 2; i++) {
-            printf("in context_uload, argv[%d]: %s\n", i, argv[i]);
+            printf("argv[%d]: %s\n", i, argv[i]);
         }
     }
+    uintptr_t entry = loader(pcb, filename);
     // create new kernel stack for new user process
     Area stack = {
         .start = pcb->stack,
@@ -138,22 +131,22 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     while (argv != NULL && argv[argc] != NULL) argc++;
 
     // uintptr_t for portability
-    space_count += sizeof(uintptr_t); // store argc
-    Log("argc spce_count: %d", space_count);
+    space_count += sizeof(int); // store argc
+    //Log("argc spce_count: %d", space_count);
     space_count += sizeof(uintptr_t) * (argc + 1); // store argv
-    Log("argv spce_count: %d", space_count);
+    //Log("argv spce_count: %d", space_count);
     space_count += sizeof(uintptr_t) * (envpc + 1); // store envp
-    Log("envp spce_count: %d", space_count);
-    for (int i = 0; i < envpc; ++i) { 
-        Log("envp spce_count: %d , envp[%d] len = %d", space_count, i, (strlen(envp[i]) + 1));
+    //Log("envp spce_count: %d", space_count);
+        printf("bugjhewr.\n");
+    for (int i = 0; i < envpc; i++) { 
+        //Log("envp spce_count: %d , envp[%d] len = %d", space_count, i, (strlen(envp[i]) + 1));
         space_count += (strlen(envp[i]) + 1);  // the length of each element in envp[]
-        Log("after end envp[%d] spce_count = %d", i, space_count);
+        //Log("after end envp[%d] spce_count = %d", i, space_count);
     }
-    for (int i = 0; i < argc; ++i) { 
-        Log("argv spce_count: %d , argv[%d] len =  %d", space_count, i, (strlen(argv[i]) + 1));
-        Log("in strlen..., argv[%d]: %s", i, argv[i]);
+    for (int i = 0; i < argc; i++) { 
+        //Log("argv spce_count: %d , argv[%d] len =  %d", space_count, i, (strlen(argv[i]) + 1));
         space_count += (strlen(argv[i]) + 1);  // the length of each element in argv[]
-        Log("after, end argv[%d] spce_count = %d", i, space_count);
+        //Log("after, end argv[%d] spce_count = %d", i, space_count);
     }
     Log("envpc: %d, argc: %d, space_count: %d", envpc, argc, space_count);
 

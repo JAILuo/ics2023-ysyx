@@ -1,11 +1,8 @@
 #include <stdint.h>
 #include <proc.h>
+#include <loader.h>
 
 #define MAX_NR_PROC 4
-
-uintptr_t naive_uload(PCB *pcb, const char *filename);
-void context_kload(PCB *pcb, void (*entry)(void *), void *arg);
-void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]);
 
 static PCB pcb[MAX_NR_PROC] __attribute__((used)) = {};
 static PCB pcb_boot = {};

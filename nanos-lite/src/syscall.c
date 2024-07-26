@@ -3,8 +3,8 @@
 #include "syscall.h"
 #include <stdint.h>
 #include <sys/time.h>
-    
-uintptr_t naive_uload(PCB *pcb, const char *filename);
+#include <fs.h>
+#include <loader.h>   
 
 const char *syscall_name[] = {
     [SYS_exit] = "exit",
@@ -38,7 +38,6 @@ const char *syscall_name[] = {
                                 (type) == SYS_lseek)
 #define IS_SYS_OPEN(type) ((type) == SYS_open)
 
-char *fd_name(int fd);
 static inline void Strace(Context *c, intptr_t type, intptr_t a0, intptr_t a1, intptr_t a2) {
     #define FORMAT_STRACE "syscall: %s num: %d(d)\n" \
                           "        reg: a0: 0x%x  a1: 0x%x  a2: 0x%x\n" \
@@ -56,13 +55,6 @@ static inline void Strace(Context *c, intptr_t type, intptr_t a0, intptr_t a1, i
 #define strace() 
 #endif
 
-int fs_open(const char *pathname, int flags, int mode);
-size_t fs_read(int fd, void *buf, size_t len);
-size_t fs_write(int fd, const void *buf, size_t len);
-size_t fs_lseek(int fd, size_t offset, int whence);
-int fs_close(int fd);
-
-void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]);
 void switch_boot_pcb();
 
 void yield();
@@ -74,8 +66,25 @@ static int sys_yield() {
     return 0;
 }
 
+extern PCB *current;
+static int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
+    if (fs_open(fname, 0, 0) == -1) return -2;
+    /*
+    printf("in sys_execve, fname:%s\n", fname); 
+    for(int i = 0; i < 2; i++) {
+        printf("in sys_execve, argv[%d]: %s\n", i, argv[i]);
+    }
+    */
+    context_uload(current, fname, argv, envp);
+    switch_boot_pcb();
+    yield();
+    return -1;
+}
+
 static void sys_exit(int code) {
-    naive_uload(NULL, "/bin/menu");
+    char *argv[] = {"/bin/nterm", NULL};
+    char *envp[] = {NULL};
+    sys_execve("/bin/nterm", argv, envp);
     //halt(code);
 }
 
@@ -86,19 +95,6 @@ static int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
     ioe_read(AM_TIMER_UPTIME, &us);
     tv->tv_sec = us / 1000000;
     tv->tv_usec = us % 1000000;
-    return 0;
-}
-
-extern PCB *current;
-static int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
-    if (fname == NULL) return -1;
-    printf("in sys_execve, fname:%s\n", fname); 
-    for(int i = 0; i < 2; i++) {
-        printf("in sys_execve, argv[%d]: %s\n", i, argv[i]);
-    }
-    context_uload(current, fname, argv, envp);
-    switch_boot_pcb();
-    yield();
     return 0;
 }
 
