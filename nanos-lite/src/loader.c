@@ -63,14 +63,6 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
 
             printf("in loader4, filename:%s\n", filename);
             
-            /*
-            fs_read(fd, (void *)ph[i].p_vaddr, ph[i].p_memsz);// vaddr or paddr？
-            
-            printf("in loader5, filename:%s\n", filename);
-            memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
-                   ph[i].p_memsz - ph[i].p_filesz);
-            printf("in loader6, filename:%s\n", filename);
-            */
             fs_read(fd, (void *)buf_malloc, ph[i].p_memsz);// vaddr or paddr？
             
             printf("in loader5, filename:%s\n", filename);
@@ -112,21 +104,6 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
       (void *)pcb->cp->gpr[2]);
       */
 }
-/*
-static size_t get_varargs_size(char *const varargs[], size_t len, size_t sizes[]) {
-  if (varargs == NULL) {
-    return 0;
-  }
-
-  size_t sz_str = 0;
-  for (size_t i = 0; i < len; i++) {
-    const size_t sz = strlen(varargs[i]) + 1;
-    sz_str += sz;
-    sizes[i] = sz;
-  }
-  return sz_str;
-}
-*/
 
 static int test = 1;
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
@@ -154,7 +131,7 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     // create new user stack for new user process
     void *new_user_stack = new_page(8); // has beend aligined
 
-    // begin base in ucontext(Contex structure below) ? some question 
+    // store argc, argv, envp in the user stack after ucontext.
     int envpc = 0, argc = 0;
     size_t space_count = 0;
     while (envp != NULL && envp[envpc] != NULL) envpc++; 
@@ -178,10 +155,6 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
         space_count += (strlen(argv[i]) + 1);  // the length of each element in argv[]
         Log("after, end argv[%d] spce_count = %d", i, space_count);
     }
-    //size_t argv_sizes[argc];
-    //space_count += get_varargs_size(argv, argc, argv_sizes);
-    //Log("spce_count = %d", space_count);
-
     Log("envpc: %d, argc: %d, space_count: %d", envpc, argc, space_count);
 
 
@@ -190,12 +163,13 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     uintptr_t *base_mem = base;
     Log("Base after ROUNDUP:%p", base);
 
-
+    
+    // store argc, notice data type is int
     *((int *)base) = (int)argc;
     base = (uintptr_t *)((char *)base + sizeof(int));
 
 
-    // first-level pointer to the address of a string
+    // first-level pointer to the address of a string(argv, envp)
     base += (argc + 1) + (envpc + 1);
     uintptr_t *string_base = (uintptr_t*)base;
     for (int i = 0; i < argc; i++) {
@@ -219,8 +193,7 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
             *(char **)base,
             *(char **)base == NULL ? "(null)" : *(char **)base);
     }
-    *base = (uintptr_t)NULL; // argv[argc] = NULL
-    base++;
+    *base++ = (uintptr_t)NULL; // argv[argc] = NULL
     
     for (int i = 0; i < envpc; i++, base++) {
         memcpy((void *)base, (const void *)&envp[i], sizeof(uintptr_t));
@@ -229,18 +202,11 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
             *(char **)base,
             *(char **)base == NULL ? "(null)" : *(char **)base);
     }
-    *base = (uintptr_t)NULL; // argv[envpc] = NULL
-    base++;
+    *base++ = (uintptr_t)NULL; // argv[envpc] = NULL
 
     // Unspecified ...
     assert(string_base == base);
 
     pcb->cp->GPRx = (uintptr_t)base_mem;
-    /*
-    Log("user context: %p (a0=%p, mepc/entry=%p)",
-    pcb->cp,
-    (void *)pcb->cp->GPRx,
-    (void *)pcb->cp->mepc);
-    */
 }
 
