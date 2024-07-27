@@ -75,6 +75,7 @@ size_t fs_read(int fd, void *buf, size_t len) {
     }
 
     finfo->open_offset += real_len;
+    //printf("filename in fs_read2: %s\n", file_table[fd].name);
     return ret;
 }
 

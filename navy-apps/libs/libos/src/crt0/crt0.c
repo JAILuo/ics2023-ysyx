@@ -11,9 +11,13 @@ void call_main(uintptr_t *args) {
     char *base = (char *)args;
 
     int argc = *((int *)base);
+    printf("in call_main argc:%d\n", argc);
+    printf("argc:%p\n", argc);
     base += sizeof(int);
 
     char **argv = (char **)base;
+    printf("argv:%p\n", argv);
+    printf("in call_main argv[0]:%s\n", argv[0]);
     base += sizeof(char *) * (argc + 1);
 
     char **envp = (char **)base;

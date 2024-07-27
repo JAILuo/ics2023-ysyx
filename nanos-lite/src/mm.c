@@ -4,7 +4,7 @@ static void *pf = NULL;
 
 void* new_page(size_t nr_page) {
     pf += nr_page * PGSIZE;
-    Log("ustack.end: %p", pf);
+    Log("ustack.start: %p", pf);
     return pf;
 }
 

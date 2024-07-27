@@ -68,9 +68,12 @@ static int sys_yield() {
 
 extern PCB *current;
 static int sys_execve(const char *fname, char *const argv[], char *const envp[]) {
-    if (fs_open(fname, 0, 0) == -1) return -2;
+    int fd = fs_open(fname, 0, 0);
+    if (fd == -1) return -2;
+    fs_close(fd);
+
+    Log("execve, switch to \"%s\" app", fname);
     /*
-    printf("in sys_execve, fname:%s\n", fname); 
     for(int i = 0; i < 2; i++) {
         printf("in sys_execve, argv[%d]: %s\n", i, argv[i]);
     }
@@ -107,7 +110,7 @@ void do_syscall(Context *c) {
 
   switch (a[0]) {
     case SYS_exit: strace(); sys_exit(a[0]); break;
-    case SYS_yield: c->GPRx = sys_yield(); break;
+    case SYS_yield: sys_yield(); c->GPRx = 0; break;
     case SYS_open: c->GPRx = fs_open((const char *)a[1], a[2], a[3]); break;
     case SYS_read: c->GPRx = fs_read(a[1], (void *)a[2],a[3]); break;
     case SYS_write: c->GPRx = fs_write(a[1], (const void *)a[2], a[3]); break;

@@ -30,9 +30,11 @@ void init_proc() {
   char *argv_nterm[] = {"/bin/nterm",  NULL};
   
   //context_uload(&pcb[0], "/bin/exec-test", argv_exec_test, envp);
-  //context_kload(&pcb[1], hello_fun, "A");
-  //context_uload(&pcb[0], "/bin/pal", argv_pal, envp);
   context_uload(&pcb[0], "/bin/nterm", argv_nterm, envp);
+  //context_uload(&pcb[0], "/bin/pal", argv_pal, envp);
+  //context_uload(&pcb[0], "/bin/menu", argv_menu, envp);
+  context_kload(&pcb[1], hello_fun, "A");
+  //context_uload(&pcb[0], "/bin/pal", argv_pal, envp);
   //printf("in init_proc pcb0->cp->mepc:%p\n",pcb[0].cp->mepc);
   switch_boot_pcb();
 }
