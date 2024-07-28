@@ -3,13 +3,18 @@
 static void *pf = NULL;
 
 void* new_page(size_t nr_page) {
+    // return high address
+    Log("before pf :%p", pf);
     pf += nr_page * PGSIZE;
-    Log("ustack.start: %p", pf);
+    assert(pf <= heap.end);
+    Log("ustack.start/stack_bottom: %p", pf);
     return pf;
 }
 
 #ifdef HAS_VME
 static void* pg_alloc(int n) {
+    //int nr_page = n / PGSIZE;
+
   return NULL;
 }
 #endif
