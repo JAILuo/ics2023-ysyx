@@ -114,10 +114,10 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
       */
 }
 
+
+
 static size_t len_varargs(char *const varargs[]) {
-  if (varargs == NULL) {
-    return 0;
-  }
+  if (varargs == NULL) return 0;
 
   Log("scanning varargs list [%p]", varargs);
   size_t len = 0;
@@ -129,55 +129,49 @@ static size_t len_varargs(char *const varargs[]) {
   return len;
 }
 
+
 //static int test = 1;
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
     //printf("name:%s\n", filename);
-    /*
-    if (test++ == 2) {
-        for (int i = 0; i < 2; i++) {
-            printf("argv[%d]: %s\n", i, argv[i]);
-       }
-    }
-    */
+    //if (test++ == 2) {
+    //    for (int i = 0; i < 2; i++) {
+    //        printf("argv[%d]: %s\n", i, argv[i]);
+    //   }
+    //}
+
     //printf("name2:%s\n",filename);
     // create new kernel stack for new user process
-    Area stack = {
+    Area kstack = {
         .start = pcb->stack,
         .end   = pcb->stack + STACK_SIZE
     };
-    Log("kernel stack.start/stack_top: %p, stack.end/stack_bottom: %p",
-        stack.start, stack.end);
+    Log("kernel stack.start/stack_top: %p, "
+        "stack.end/stack_bottom: %p",
+        kstack.start, kstack.end);
 
-    uintptr_t entry = loader(pcb, filename);
-    Log("context_uload: switch to process: %s", filename);
+    //uintptr_t entry = loader(pcb, filename);
+    //Log("context_uload: switch to process: %s", filename);
 
     // create new context for new process
-    pcb->cp = ucontext(&pcb->as, stack, (void(*)())entry);
-
+    //pcb->cp = ucontext(&pab->as, kstack, (void(*)())entry);
 
     // create new user stack for new user process
-    void *new_user_stack_bottom = new_page(8); // has beend aligined
+    void *new_user_stack_top = new_page(8);
+    void *new_user_stack_bottom = new_user_stack_top + 8 * PGSIZE;
     Log("new_user_stack_bottom: %p, new_user_stack_top: %p",
-        new_user_stack_bottom, new_user_stack_bottom - (8 * PGSIZE));
+        new_user_stack_bottom, new_user_stack_top);
 
 
     // store argc, argv, envp in the user stack after ucontext.
     const int argc = (int)len_varargs(argv);
     const int envpc = (int)len_varargs(envp);
 
-    //int envpc = 0;
-    //int argc = 0;
-    //while (envp != NULL && envp[envpc] != NULL) envpc++; 
-    //while (argv != NULL && argv[argc] != NULL) argc++;
-    //while (envp[envpc] != NULL) envpc++; 
-    //while (argv[argc] != NULL) argc++;
-
     size_t space_count = 0;
     space_count += sizeof(int); // store argc
     //Log("argc spce_count: %d", space_count);
-    printf("in context_uload, argc:%d\n", argc);
-    printf("in context_uload, argv:%p\n", argv);
-    printf("in context_uload, argv[0]:%p\n", *argv);
+    //printf("in context_uload, argc:%d\n", argc);
+    //printf("in context_uload, argv:%p\n", argv);
+    //printf("in context_uload, argv[0]:%p\n", *argv);
     space_count += sizeof(uintptr_t) * (argc + 1); // store argv
     Log("argv spce_count: %d", space_count);
     space_count += sizeof(uintptr_t) * (envpc + 1); // store envp
@@ -195,9 +189,9 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     Log("envpc: %d, argc: %d, space_count: %d", envpc, argc, space_count);
 
 
-    //Log("Base before ROUNDUP%p", ((char *)new_user_stack_end - sizeof(Context) - space_count));
+    space_count += sizeof(uintptr_t); // for ROUNDUP
     Log("Base before ROUNDUP:%p", new_user_stack_bottom);
-    uintptr_t *base = (uintptr_t *)ROUNDDOWN(new_user_stack_bottom - sizeof(Context) - space_count, sizeof(uintptr_t));
+    uintptr_t *base = (uintptr_t *)ROUNDUP(new_user_stack_bottom - sizeof(Context) - space_count, sizeof(uintptr_t));
     //uintptr_t *base = (uintptr_t *)((char *)new_user_stack_start - space_count);
     uintptr_t *base_mem = base;
     Log("Base after ROUNDUP:%p", base);
@@ -215,12 +209,12 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     uintptr_t *string_base = (uintptr_t*)base;
     for (int i = 0; i < argc; i++) {
         memcpy((void *)base, (const void *)&argv[i], sizeof(void *));
-        Log("copying argv %p <~ %p -> %s", base, argv[i], argv[i]);
+        Log("copying argv(base) %p <~ %p -> %s", base, argv[i], argv[i]);
     }
 
     for (int i = 0; i < envpc; i++) {
         memcpy((void *)base, (const void *)&envp[i], sizeof(void *));
-        Log("copying envp %p <~ %p -> %s", base, envp[i], envp[i]);
+        Log("copying envp(base) %p <~ %p -> %s", base, envp[i], envp[i]);
     }
 
 
@@ -245,19 +239,24 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     }
     *base++ = (uintptr_t)NULL; // argv[envpc] = NULL
 
+    assert(string_base == base);
 
-    /*
+    
     uintptr_t entry = loader(pcb, filename);
     Log("context_uload: switch to process: %s", filename);
 
     // create new context for new process
-    pcb->cp = ucontext(&pcb->as, stack, (void(*)())entry);
+    Context *ctx = ucontext(&pcb->as, kstack, (void(*)())entry);
     Log("entry: %p", entry);
-    */
 
-    // Unspecified ...
-    assert(string_base == base);
-
+    pcb->cp = ctx;
     pcb->cp->GPRx = (uintptr_t)base_mem;
+
+    /*
+    Log("user context: %p (a0=%p, sp=%p)",
+    pcb->cp,
+    (void *)pcb->cp->GPRx,
+    (void *)pcb->cp->gpr[2]);
+    */
 }
 

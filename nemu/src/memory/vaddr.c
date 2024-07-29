@@ -17,13 +17,25 @@
 #include <memory/paddr.h>
 
 word_t vaddr_ifetch(vaddr_t addr, int len) {
-  return paddr_read(addr, len);
+    switch (isa_mmu_check(addr, len ,MEM_TYPE_IFETCH)) {
+        case MMU_DIRECT: return paddr_read(addr, len);
+        case MMU_TRANSLATE: return paddr_read(isa_mmu_translate(addr, len, MEM_TYPE_IFETCH), len);
+        default: panic("unkown isa_mmu_check type");
+    }
 }
 
 word_t vaddr_read(vaddr_t addr, int len) {
-  return paddr_read(addr, len);
+    switch (isa_mmu_check(addr, len, MEM_TYPE_READ)) {
+        case MMU_DIRECT: return paddr_read(addr, len);
+        case MMU_TRANSLATE: return paddr_read(isa_mmu_translate(addr, len, MEM_TYPE_READ), len);
+        default: panic("unknown isa_mmu_check type");
+    }
 }
 
 void vaddr_write(vaddr_t addr, int len, word_t data) {
-  paddr_write(addr, len, data);
+    switch (isa_mmu_check(addr, len, MEM_TYPE_WRITE)) {
+        case MMU_DIRECT: paddr_write(addr, len, data); break;
+        case MMU_TRANSLATE: paddr_write(isa_mmu_translate(addr, len, MEM_TYPE_WRITE), len, data); break;
+        default: panic("unknown isa_mmu_check type");
+    }
 }

@@ -9,7 +9,9 @@ static Context* do_event(Event e, Context* c) {
         //printf("before schedule, c->mepc:%p\n", c->mepc);
         //printf("before, a0(filename):%p, a1(argv):%p, a2(envp): %p\n", 
         //      c->GPR2, c->GPR3, c->GPR4);
+        //Log("in user_handle, before schedule, Context: %p, c->sp:%p", c, c->gpr[2]);
         c = schedule(c); 
+        //Log("in user_handle, after schedule, Context: %p, c->sp:%p", c, c->gpr[2]);
         //printf("after schedule, c->mepc:%p\n", c->mepc);
         //printf("after, a0(filename):%p, a1(argv):%p, a2(envp): %p\n", 
         //      c->GPR2, c->GPR3, c->GPR4);

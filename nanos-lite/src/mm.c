@@ -3,19 +3,22 @@
 static void *pf = NULL;
 
 void* new_page(size_t nr_page) {
-    // return high address
-    Log("before pf :%p", pf);
+    // return low address
+    void *old_pf = pf;
+    Log("before alloc: %p", old_pf);
+    //assert(pf >= (void *)0x83000000);
     pf += nr_page * PGSIZE;
     assert(pf <= heap.end);
-    Log("ustack.start/stack_bottom: %p", pf);
-    return pf;
+    Log("after alloc, ustack.start/stack_bottom: %p", pf);
+    return old_pf;
 }
 
 #ifdef HAS_VME
 static void* pg_alloc(int n) {
-    //int nr_page = n / PGSIZE;
-
-  return NULL;
+    void *page = new_page(n / PGSIZE);
+    assert(page != NULL);
+    memset(page, '\0', n);
+    return page;
 }
 #endif
 
@@ -30,6 +33,7 @@ int mm_brk(uintptr_t brk) {
 
 void init_mm() {
   pf = (void *)ROUNDUP(heap.start, PGSIZE);
+  Log("pf, heap.start: %p", pf);
   Log("free physical pages starting from %p", pf);
 
 #ifdef HAS_VME

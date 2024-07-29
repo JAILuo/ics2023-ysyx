@@ -1,19 +1,23 @@
 #include <am.h>
 #include <riscv/riscv.h>
 #include <klib.h>
+#include <stdint.h>
 
 static Context* (*user_handler)(Event, Context*) = NULL;
 
 Context* __am_irq_handle(Context *c) {
     if (user_handler) {
+    //printf("in __am_irq_handle,c:%p c->sp:%p\n", c, c->gpr[2]);
         Event ev = {0};
         switch (c->mcause) {
           	case 0xb:
             	if (c->GPR1 == -1) { // YIELD
+                    //printf("yield\n");
                     ev.event = EVENT_YIELD; c->mepc += 4;
                 } else if (c->GPR1 >= 0 && c->GPR1 <= 19){ 
                     // system call (include sys_yield)
                     // NR_SYSCALL:20
+                    //printf("syscall:%d\n", c->GPR1);
                 	ev.event = EVENT_SYSCALL; c->mepc += 4;   
             	} else {
                 	printf("unknown exception event\n");
@@ -47,6 +51,7 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
     // just pass the difftest
     base->mstatus = 0x1800;
     base->mepc = (uintptr_t)entry;
+    base->gpr[2] = (uintptr_t)kstack.end; // sp
     base->gpr[10] = (uintptr_t)arg; // a0
     return base;
 }
