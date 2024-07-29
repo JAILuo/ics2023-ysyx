@@ -2,6 +2,7 @@
 
 static void *pf = NULL;
 
+/*
 void* new_page(size_t nr_page) {
     // return low address
     void *old_pf = pf;
@@ -11,6 +12,12 @@ void* new_page(size_t nr_page) {
     assert(pf <= heap.end);
     Log("after alloc, ustack.start/stack_bottom: %p", pf);
     return old_pf;
+}
+*/
+void* new_page(size_t nr_page) {
+  pf += nr_page * PGSIZE;
+  Log("ustack.end: %p", pf);
+  return pf;
 }
 
 #ifdef HAS_VME

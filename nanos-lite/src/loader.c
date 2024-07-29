@@ -54,42 +54,22 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     // check machine  
     assert(eh.e_machine == EXPECT_TYPE);
 
-    // 奇怪的bug，为什么malloc在native下用不行的.
-    //Elf_Phdr *ph = (Elf_Phdr *)malloc(sizeof(Elf_Phdr) * eh.e_phnum);
     Elf_Phdr ph[eh.e_phnum]; 
     fs_lseek(fd, eh.e_phoff, SEEK_SET);
     fs_read(fd, ph, sizeof(Elf_Phdr) * eh.e_phnum);
     for (size_t i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type == PT_LOAD) {
-            //char *buf_malloc = (char *)malloc(ph[i].p_filesz * sizeof(char) + 1);
             fs_lseek(fd, ph[i].p_offset, SEEK_SET);
 
             //printf("in loader1, filename:%s\n", filename);
-            //fs_read(fd, (void *)buf_malloc, ph[i].p_memsz);// vaddr or paddr？
             fs_read(fd, (void *)ph[i].p_vaddr, ph[i].p_memsz);// vaddr or paddr？
             //printf("in loader2, filename:%p\n", filename);
-            /*
-        if (cptest++ >= 3) {
-            printf("filename22:%p\n",filename, filename);
-            printf("pcb->cp:%p\n", pcb->cp);
-            printf("pcb->cp2:%p\n", ((char *)(pcb->cp) - 28) );
-            printf("pcb->cp3:%s\n", (char *)((char *)(pcb->cp) - 24) );
-        }
-        */
             
-            //memcpy((void *)(uintptr_t)ph[i].p_vaddr, buf_malloc, ph[i].p_filesz);
-            
-            //printf("in loader3, filename:%s\n", filename);
             memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
                    ph[i].p_memsz - ph[i].p_filesz);
 
-            //free(buf_malloc);
-            //buf_malloc = NULL;
         }
     }
-    //free(ph);
-    //ph = NULL;
-
     fs_close(fd);
     return (uintptr_t)eh.e_entry;
 }
@@ -114,8 +94,6 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
       */
 }
 
-
-
 static size_t len_varargs(char *const varargs[]) {
   if (varargs == NULL) return 0;
 
@@ -132,29 +110,6 @@ static size_t len_varargs(char *const varargs[]) {
 
 //static int test = 1;
 void context_uload(PCB *pcb, const char *filename, char *const argv[], char *const envp[]) {
-    //printf("name:%s\n", filename);
-    //if (test++ == 2) {
-    //    for (int i = 0; i < 2; i++) {
-    //        printf("argv[%d]: %s\n", i, argv[i]);
-    //   }
-    //}
-
-    //printf("name2:%s\n",filename);
-    // create new kernel stack for new user process
-    Area kstack = {
-        .start = pcb->stack,
-        .end   = pcb->stack + STACK_SIZE
-    };
-    Log("kernel stack.start/stack_top: %p, "
-        "stack.end/stack_bottom: %p",
-        kstack.start, kstack.end);
-
-    //uintptr_t entry = loader(pcb, filename);
-    //Log("context_uload: switch to process: %s", filename);
-
-    // create new context for new process
-    //pcb->cp = ucontext(&pab->as, kstack, (void(*)())entry);
-
     // create new user stack for new user process
     void *new_user_stack_top = new_page(8);
     void *new_user_stack_bottom = new_user_stack_top + 8 * PGSIZE;
@@ -168,34 +123,29 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
     size_t space_count = 0;
     space_count += sizeof(int); // store argc
-    //Log("argc spce_count: %d", space_count);
-    //printf("in context_uload, argc:%d\n", argc);
-    //printf("in context_uload, argv:%p\n", argv);
-    //printf("in context_uload, argv[0]:%p\n", *argv);
+    Log("argc spce_count: %d", space_count);
     space_count += sizeof(uintptr_t) * (argc + 1); // store argv
-    Log("argv spce_count: %d", space_count);
+    Log("argv: %d spce_count: %d", argc, space_count);
     space_count += sizeof(uintptr_t) * (envpc + 1); // store envp
-    Log("envp spce_count: %d", space_count);
+    Log("envpc: %d spce_count: %d", envpc, space_count);
     for (int i = 0; i < envpc; i++) { 
-        Log("envp spce_count: %d , envp[%d] len = %d", space_count, i, (strlen(envp[i]) + 1));
+        //Log("envp spce_count: %d , envp[%d] len = %d", space_count, i, (strlen(envp[i]) + 1));
         space_count += (strlen(envp[i]) + 1);  // the length of each element in envp[]
-        Log("after end envp[%d] spce_count = %d", i, space_count);
+        //Log("after end envp[%d] spce_count = %d", i, space_count);
     }
     for (int i = 0; i < argc; i++) { 
-        Log("argv spce_count: %d , argv[%d] len =  %d", space_count, i, (strlen(argv[i]) + 1));
+        //Log("argv spce_count: %d , argv[%d] len =  %d", space_count, i, (strlen(argv[i]) + 1));
         space_count += (strlen(argv[i]) + 1);  // the length of each element in argv[]
-        Log("after, end argv[%d] spce_count = %d", i, space_count);
+        //Log("after, end argv[%d] spce_count = %d", i, space_count);
     }
     Log("envpc: %d, argc: %d, space_count: %d", envpc, argc, space_count);
 
 
     space_count += sizeof(uintptr_t); // for ROUNDUP
-    Log("Base before ROUNDUP:%p", new_user_stack_bottom);
-    uintptr_t *base = (uintptr_t *)ROUNDUP(new_user_stack_bottom - sizeof(Context) - space_count, sizeof(uintptr_t));
-    //uintptr_t *base = (uintptr_t *)((char *)new_user_stack_start - space_count);
-    uintptr_t *base_mem = base;
+    Log("Base before ROUNDUP:%p", new_user_stack_bottom - space_count);
+    uintptr_t *base = (uintptr_t *)ROUNDUP(new_user_stack_bottom - space_count, sizeof(uintptr_t));
+    uintptr_t *base_2_app = base;
     Log("Base after ROUNDUP:%p", base);
-
     
     // store argc, notice data type is int
     *((int *)base) = (int)argc;
@@ -203,24 +153,8 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     base = (uintptr_t *)((char *)base + sizeof(int));
 
 
-    // stirng area
-    // first-level pointer to the address of a string(argv, envp)
-    base += (argc + 1) + (envpc + 1);
-    uintptr_t *string_base = (uintptr_t*)base;
-    for (int i = 0; i < argc; i++) {
-        memcpy((void *)base, (const void *)&argv[i], sizeof(void *));
-        Log("copying argv(base) %p <~ %p -> %s", base, argv[i], argv[i]);
-    }
-
-    for (int i = 0; i < envpc; i++) {
-        memcpy((void *)base, (const void *)&envp[i], sizeof(void *));
-        Log("copying envp(base) %p <~ %p -> %s", base, envp[i], envp[i]);
-    }
-
-
     // second-level pointer that stores the address 
     // where the string address is stored (the first-level pointer)
-    base -= (argc + 1) + (envpc + 1);
     for (int i = 0; i < argc; i++, base++) {
         memcpy((void *)base, (const void *)&argv[i], sizeof(uintptr_t));
         Log("argv set: %p -> %p -> %s",
@@ -239,24 +173,39 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     }
     *base++ = (uintptr_t)NULL; // argv[envpc] = NULL
 
-    assert(string_base == base);
 
-    
-    uintptr_t entry = loader(pcb, filename);
-    Log("context_uload: switch to process: %s", filename);
+    // stirng area
+    // first-level pointer to the address of a string(argv, envp)
+    for (int i = envpc - 1; i >= 0; i--) {
+        memcpy((void *)base, (const void *)&envp[i], sizeof(void *));
+        base = (uintptr_t *)((char *)base + (strlen(envp[i]) + 1));
+        Log("copying envp(base) %p <~ %p -> %s", base, envp[i], envp[i]);
+    }
+    for (int i = argc - 1; i >= 0; i--) {
+        memcpy((void *)base, (const void *)&argv[i], sizeof(void *));
+        base = (uintptr_t *)((char *)base + (strlen(argv[i]) + 1));
+        Log("copying argv(base) %p <~ %p -> %s", base, argv[i], argv[i]);
+    }
+
+    Area kstack = {
+        .start = pcb->stack,
+        .end   = pcb->stack + STACK_SIZE
+    };
+    Log("kernel stack.start/stack_top: %p, "
+        "stack.end/stack_bottom: %p",
+        kstack.start, kstack.end);
 
     // create new context for new process
-    Context *ctx = ucontext(&pcb->as, kstack, (void(*)())entry);
-    Log("entry: %p", entry);
+    uintptr_t entry = loader(pcb, filename);
+    Log("switch to user process: %s", filename);
+    Log("user process entry: %p", entry);
+    pcb->cp = ucontext(&pcb->as, kstack, (void(*)())entry);
 
-    pcb->cp = ctx;
-    pcb->cp->GPRx = (uintptr_t)base_mem;
+    Log("base:%p", base);
+    pcb->cp->GPRx = (uintptr_t)base_2_app;
 
-    /*
-    Log("user context: %p (a0=%p, sp=%p)",
-    pcb->cp,
-    (void *)pcb->cp->GPRx,
-    (void *)pcb->cp->gpr[2]);
-    */
+    Log("user context: %p (a0=%p, sp=%p)", 
+        pcb->cp,
+        (void *)pcb->cp->GPRx,
+        (void *)pcb->cp->gpr[2]);
 }
-
