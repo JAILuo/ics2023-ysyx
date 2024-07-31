@@ -25,6 +25,7 @@ static inline uintptr_t get_satp() {
   return satp << 12;
 }
 
+// kernel page table 
 bool vme_init(void* (*pgalloc_f)(int), void (*pgfree_f)(void*)) {
   pgalloc_usr = pgalloc_f;
   pgfree_usr = pgfree_f;
@@ -32,8 +33,8 @@ bool vme_init(void* (*pgalloc_f)(int), void (*pgfree_f)(void*)) {
   kas.ptr = pgalloc_f(PGSIZE);
 
   int i;
+  printf("segments len: %d\n", LENGTH(segments));
   for (i = 0; i < LENGTH(segments); i ++) {
-      printf("segments len: %d\n", LENGTH(segments));
     void *va = segments[i].start;
     for (; va < segments[i].end; va += PGSIZE) {
       map(&kas, va, va, 0);
@@ -68,15 +69,18 @@ void __am_switch(Context *c) {
   }
 }
 
-#define VA_VPN_1(addr) ((addr >> 22) && 0x000003ff)
-#define VA_VPN_0(addr) ((addr >> 12) && 0x000003ff)
-#define VA_OFFSET(addr) (addr && 0x00000fff)
+#define VA_VPN_1(addr) ((addr >> 22) & 0x000003ff)
+#define VA_VPN_0(addr) ((addr >> 12) & 0x000003ff)
+#define VA_OFFSET(addr) (addr & 0x00000fff)
 
 #define PA_OFFSET(addr) (addr & 0x00000fff)
 #define PA_PPN(addr)    ((addr >> 12) & 0x000fffff)
-#define PTE_PPN 0xFFFFF000 // 31 ~ 12
+#define PTE_PPN (0xFFFFF000) // 31 ~ 12
 
-void map(AddrSpace *as, void *va, void *pa, int prot) {
+#define PTE_V_fetch(entry) (entry & 0x1)
+
+/*
+void map(AddrSpace *as, void *va, void *pa, int prot) { 
   printf("[map start]\n[VA]: %p, [PA]: %p\n", va, pa);
 
   uintptr_t va_trans = (uintptr_t) va;
@@ -89,35 +93,89 @@ void map(AddrSpace *as, void *va, void *pa, int prot) {
   uint32_t vpn_1 = VA_VPN_1(va_trans);
   uint32_t vpn_0 = VA_VPN_0(va_trans);
 
-  printf("[PA_PPN]: 0x%x, [VA_VPN_1]: 0x%x, [VA_VPN_0]: 0x%x\n", ppn, vpn_1, vpn_0);
+  //printf("[PA_PPN]: 0x%x, [VA_VPN_1]: 0x%x, [VA_VPN_0]: 0x%x\n", ppn, vpn_1, vpn_0);
 
-  PTE *page_dir_base = (PTE *) as->ptr;
-  PTE *page_dir_target = page_dir_base + vpn_1; // 这里是指针，和 nemu 的不一样，偏移不用乘4
-  printf("[DIR BASE]: %p, [DIR TARGET]: %p\n", page_dir_base, page_dir_target);
+  PTE * page_dir_base = (PTE *) as->ptr;
+  PTE * page_dir = page_dir_base + vpn_1;
+  //printf("[DIR BASE]: %p, [DIR TARGET]: %p\n", page_dir_base, page_dir);
 
-  if (*page_dir_target == 0) { // empty
-    PTE *page_table_base = (PTE *) pgalloc_usr(PGSIZE);
-    *page_dir_target = ((PTE) page_table_base) | PTE_V;
+  if (*page_dir == 0) { // empty
+    PTE * page_table_base = (PTE *)pgalloc_usr(PGSIZE);
+    *page_dir = ((PTE) page_table_base) | PTE_V;
 
-    PTE *page_table_target = page_table_base + vpn_0;
+    PTE * page_table_target = page_table_base + vpn_0;
+    *page_table_target = (ppn << 12)| PTE_V | PTE_R | PTE_W | PTE_X;
+
+    //printf("[DIR TARGET ITEM]: 0x%x\n", *page_dir);
+    //printf("[TABLE BASE]: %p, [TABLE TARGET]: %p\n", page_table_base, page_table_target);
+    //printf("[TABLE TARGET ITEM]: 0x%x\n", *page_table_target);
+  } else {
+    PTE * page_table_base = (PTE *) ((*page_dir) & PTE_PPN);
+
+    PTE * page_table_target = page_table_base + vpn_0;
     *page_table_target = (ppn << 12) | PTE_V | PTE_R | PTE_W | PTE_X;
 
-    printf("[DIR TARGET ITEM]: 0x%x\n", *page_dir_target);
-    printf("[TABLE BASE]: %p, [TABLE TARGET]: %p\n", page_table_base, page_table_target);
-    printf("[TABLE TARGET ITEM]: 0x%x\n", *page_table_target);
-  } else { // 二级页表
-    PTE *page_table_base = (PTE *) ((*page_dir_target) & PTE_PPN);
-
-    PTE *page_table_target = page_table_base + vpn_0;
-    *page_table_target = (ppn << 12) | PTE_V | PTE_R | PTE_W | PTE_X;
-
-    printf("[DIR TARGET ITEM]: 0x%x\n", *page_dir_target);
-    printf("[TABLE BASE]: %p, [TABLE TARGET]: %p\n", page_table_base, page_table_target);
-    printf("[TABLE TARGET ITEM]: 0x%x\n", *page_table_target);
+    //printf("[DIR TARGET ITEM]: 0x%x\n", *page_dir);
+    //printf("[TABLE BASE]: %p, [TABLE TARGET]: %p\n", page_table_base, page_table_target);
+    //printf("[TABLE TARGET ITEM]: 0x%x\n", *page_table_target);
   }
 
-  printf("[map end]\n\n");
+  //printf("[map end]\n\n");
 }
+*/
+
+// P111
+// SXLEN-bit
+// [PTE] Sv32: 4byte, Sv39: 8byte
+typedef uintptr_t PTE;
+
+void map(AddrSpace *as, void *va, void *pa, int prot) {
+    printf("[begin map]\nva: %p -> pa :%p\n", va, pa);
+
+    uintptr_t va_ = (uintptr_t)va;
+    uintptr_t pa_ = (uintptr_t)pa;
+
+    uintptr_t vpn_1 = VA_VPN_1(va_); 
+    uintptr_t vpn_0 = VA_VPN_0(va_); 
+    uintptr_t pa_ppn = PA_PPN(pa_);
+    printf("vpn_1: 0x%x  vpn_0: 0x%0x\n", vpn_1, vpn_0);
+
+
+    PTE *page_dir_base = (PTE *)as->ptr;
+    PTE *page_dir = (PTE *)(page_dir_base + vpn_1);
+    //printf("[PAGE DIR BASE]: 0x%x  [PAGE DIR]: 0x%x\n", *page_dir_base, *page_dir);
+    printf("[PAGE DIR BASE]: %p  [PAGE DIR]: %p\n", page_dir_base, page_dir);
+
+
+    // What if it's not a second-order one?
+    // How to judge?
+    // Or, not to distinguish? Allocate space directly?
+    // no.. greater than 0x80000000...
+    // maybe only need to 
+
+    // The unit of PT is 4KB, just store high 20-bits
+    // The unit of PTE is 4byte
+    PTE *pt_base_2 = (PTE *)pgalloc_usr(PGSIZE); // 二级页表
+    *page_dir = ((PTE) pt_base_2) | PTE_V;
+
+    //printf("pt_base_2:%p\n", pt_base_2);
+    pt_base_2 = (PTE *)(*page_dir); // 填充一级页表的内容
+    
+    //printf("pt_base_2_new:%p\n", pt_base_2);
+    PTE *pte_addr_2 = (PTE *)((uintptr_t)pt_base_2 + vpn_0);
+
+    // Think backwards
+    // put pv.ppn into pte of the secondary page table
+    // and some bits
+    *pte_addr_2 = ((pa_ppn << 12) | PTE_V | PTE_R | PTE_W | PTE_X);
+    assert(PTE_V_fetch(*pte_addr_2) == 1);
+
+    printf("[TABLE BASE]: %p, [TABLE TARGET]: %p\n", pt_base_2, pte_addr_2);
+    printf("[TABLE TARGET ITEM]: 0x%x\n", *pte_addr_2);
+
+    printf("[map end]\n\n");
+}
+
 
 Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
     void *stack_end = kstack.end;

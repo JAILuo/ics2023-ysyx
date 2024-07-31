@@ -24,10 +24,10 @@ void hello_fun(void *arg) {
   }
 }
 
-//static char *argv_pal[] = {"/bin/pal", "--skip", NULL};
+static char *argv_pal[] = {"/bin/pal", "--skip", NULL};
 //static char *argv_pal[] = {"/bin/pal", NULL};
 static char *envp[] = {NULL};
-static char *argv_exec_test[] = {"/bin/exec-test",  NULL};
+//static char *argv_exec_test[] = {"/bin/exec-test",  NULL};
 //static char *argv_menu[] = {"/bin/menu",  NULL};
 //static char *argv_nterm[] = {"/bin/nterm",  NULL};
 
@@ -35,11 +35,11 @@ void init_proc() {
   Log("Initializing processes...");
 
   printf("pcb_boot:%p\n", pcb_boot);
-  context_kload(&pcb[0], hello_fun, "A");
-  context_uload(&pcb[1], "/bin/exec-test", argv_exec_test, envp);
-  //context_uload(&pcb[1], "/bin/nterm", argv_nterm, envp);
-  //context_uload(&pcb[1], "/bin/menu", argv_menu, envp);
-  //context_uload(&pcb[1], "/bin/pal", argv_pal, envp);
+  //context_uload(&pcb[0], "/bin/nterm", argv_nterm, envp);
+  //context_uload(&pcb[0], "/bin/menu", argv_menu, envp);
+  //context_uload(&pcb[0], "/bin/exec-test", argv_exec_test, envp);
+  context_uload(&pcb[0], "/bin/pal", argv_pal, envp);
+  context_kload(&pcb[1], hello_fun, "A");
   //Log("pcb[0]: %p, pcb[0]->cp:%p, pcb0->cp->sp:%p", pcb[0], pcb[0].cp, pcb[0].cp->gpr[2]);
   //Log("pcb[1]: %p, pcb[1]->cp:%p, pcb1->cp->sp:%p", pcb[1], pcb[1].cp, pcb[1].cp->gpr[2]);
   //printf("in init_proc pcb0->cp->mepc:%p\n",pcb[0].cp->mepc);

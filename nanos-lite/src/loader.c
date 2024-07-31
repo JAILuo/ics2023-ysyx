@@ -203,9 +203,10 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
     Log("base:%p", base);
     pcb->cp->GPRx = (uintptr_t)base_2_app;
-
+    /*
     Log("user context: %p (a0=%p, sp=%p)", 
         pcb->cp,
         (void *)pcb->cp->GPRx,
         (void *)pcb->cp->gpr[2]);
+        */
 }
