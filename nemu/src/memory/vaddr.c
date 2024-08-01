@@ -19,7 +19,11 @@
 word_t vaddr_ifetch(vaddr_t addr, int len) {
     switch (isa_mmu_check(addr, len ,MEM_TYPE_IFETCH)) {
         case MMU_DIRECT: return paddr_read(addr, len);
-        case MMU_TRANSLATE: return paddr_read(isa_mmu_translate(addr, len, MEM_TYPE_IFETCH), len);
+        //case MMU_TRANSLATE: return paddr_read(isa_mmu_translate(addr, len, MEM_TYPE_IFETCH), len);
+        case MMU_TRANSLATE: return paddr_read(
+                        //isa_mmu_translate(addr, len, MEM_TYPE_IFETCH),
+                        (isa_mmu_translate(addr, len, 0) & 0xfffff000) | (addr & 0x00000fff),
+                                              len);
         default: panic("unkown isa_mmu_check type");
     }
 }

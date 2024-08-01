@@ -22,7 +22,7 @@
 /* Sv32 */
 #define VA_VPN_1(addr) ((addr >> 22) & 0x000003ff)
 #define VA_VPN_0(addr) ((addr >> 12) & 0x000003ff)
-#define VA_OFFSET(addr) (addr && 0x00000fff)
+#define VA_OFFSET(addr) (addr & 0x00000fff)
 
 #define PTE_V(entry) (entry & 0x1)
 #define PTE_R(entry) ((entry >> 1) & 0x1)
@@ -32,43 +32,48 @@
 #define PTE_G(entry) ((entry >> 5) & 0x1) 
 #define PTE_A(entry) ((entry >> 6) & 0x1) 
 #define PTE_D(entry) ((entry >> 7) & 0x1)
-#define PTE_PPN(entry) ((entry >> 12) && 0x000fffff)
+#define PTE_PPN(entry) ((entry >> 12) & 0x000fffff)
 
-#define SATP_PPN(entry) ((entry >> 10) && 0x003fffff)
+#define SATP_PPN(entry) ((entry >> 10) & 0x003fffff)
 
 typedef paddr_t PTE;
 
 // 对内存区间为[vaddr, vaddr + len), 类型为type的内存访问进行地址转换
 paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type) {
     paddr_t pt_base_reg = cpu.csr.satp;
-    
+   
+    //printf("vaddr: 0x%x\n", vaddr);
     
     // (satp.PPN * PGSIZE) + (VA[31:22] * PTESIZE)
-    PTE pt_dir_base = (SATP_PPN(pt_base_reg) << 12);
-    PTE vpn_1_offset = (VA_VPN_1(vaddr) << 2);
-    PTE pt_dir = pt_dir_base + vpn_1_offset;
+    //PTE pt_dir_base = (SATP_PPN(pt_base_reg) << 12);
+    PTE pt_dir_base = (pt_base_reg << 12);
+    PTE pt_dir_offset = (VA_VPN_1(vaddr) << 2);
+    PTE pt_dir = pt_dir_base + pt_dir_offset;
+    //printf("[pt_dir_base]: 0x%x  [pt_dir_offset]: 0x%x  [pt_dir]: 0x%x\n",
+    //       pt_dir_base, pt_dir_offset, pt_dir);
 
     PTE pte_1_addr = paddr_read(pt_dir, 4);
-    //Log("pt_dir_base:%p pte_1_addr:%d", pt_dir_base, pte_1_addr);
-    Assert(PTE_V(pte_1_addr) != 0, "pt_dir_base is unvalid.");
+    //printf("pte_1_addr: 0x%x\n", pte_1_addr);
+    Assert(PTE_V(pte_1_addr) != 0, "pt_dir is unvalid.");
     
-    // PTE.PPN×4096 + VA[21:12]×4
-    PTE pte_2_ppn_base = (PTE_PPN(pte_1_addr) << 12);
-    PTE vpn_2_offset = (VA_VPN_0(vaddr) << 2);
-
-    PTE pte_2_addr = pte_2_ppn_base + vpn_2_offset;
-    //Log("pt_ppn_base:%p pte_2_addr:%d", pt_ppn_base, pte_2_addr);
-    Assert(PTE_V(pte_2_addr) != 0, "pt_dir_base is unvalid.");
+    // (PTE.PPN * 4096) + (VA[21:12] * 4)
+    PTE pt_2_base = (PTE_PPN(pte_1_addr) << 12);
+    PTE pt_2_offset = (VA_VPN_0(vaddr) << 2);
+    PTE pte_2_addr = pt_2_base + pt_2_offset;
+    PTE pte_2 = paddr_read(pte_2_addr, 4);
+    //printf("pt_2_base: 0x%x  pt_2_offset: 0x%x  pte_2_addr: 0x%x  pte_2: 0x%x\n",
+    //        pt_2_base, pt_2_offset, pte_2_addr, pte_2);
+    Assert(PTE_V(pte_2) != 0, "pt_2 is unvalid.");
    
     switch (type) {
-        case MEM_TYPE_IFETCH: if (PTE_X(pte_2_addr) == 0) assert(0); break;
-        case MEM_TYPE_READ:   if (PTE_R(pte_2_addr) == 0) assert(0); break;
-        case MEM_TYPE_WRITE:  if (PTE_W(pte_2_addr) == 0) assert(0); break;
-    default: assert(0); break;
+        case MEM_TYPE_IFETCH: if (PTE_X(pte_2) == 0) assert(0); break;
+        case MEM_TYPE_READ:   if (PTE_R(pte_2) == 0) assert(0); break;
+        case MEM_TYPE_WRITE:  if (PTE_W(pte_2) == 0) assert(0); break;
+        default: assert(0); break;
   }
 
-    //LeafPTE.PPN×4096 + VA[11:0]
-    PTE paddr_base = (PTE_PPN(pte_2_addr) << 12);
+    // (LeafPTE.PPN * 4096) + (VA[11:0])
+    PTE paddr_base = (PTE_PPN(pte_2) << 12);
     paddr_t paddr = paddr_base | VA_OFFSET(vaddr);
 
     Assert(paddr == vaddr, "paddr unequal vaddr!!!");
