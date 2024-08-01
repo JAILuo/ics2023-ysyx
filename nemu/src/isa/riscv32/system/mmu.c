@@ -49,11 +49,16 @@ paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type) {
     PTE pt_dir_base = (pt_base_reg << 12);
     PTE pt_dir_offset = (VA_VPN_1(vaddr) << 2);
     PTE pt_dir = pt_dir_base + pt_dir_offset;
-    //printf("[pt_dir_base]: 0x%x  [pt_dir_offset]: 0x%x  [pt_dir]: 0x%x\n",
-    //       pt_dir_base, pt_dir_offset, pt_dir);
-
+    //if (vaddr < 0x80000000) {
+    //    printf("vaddr: 0x%x\n", vaddr);
+    //    printf("pt_base_reg: 0x%x\n", pt_base_reg);
+    //    printf("[pt_dir_base]: 0x%x  [pt_dir_offset]: 0x%x  [pt_dir]: 0x%x\n",
+    //        pt_dir_base, pt_dir_offset, pt_dir);
+    //}
     PTE pte_1_addr = paddr_read(pt_dir, 4);
-    //printf("pte_1_addr: 0x%x\n", pte_1_addr);
+    //if (vaddr < 0x80000000)
+    //    printf("pte_1_addr: 0x%x\n", pte_1_addr);
+    
     Assert(PTE_V(pte_1_addr) != 0, "pt_dir is unvalid.");
     
     // (PTE.PPN * 4096) + (VA[21:12] * 4)
@@ -61,8 +66,10 @@ paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type) {
     PTE pt_2_offset = (VA_VPN_0(vaddr) << 2);
     PTE pte_2_addr = pt_2_base + pt_2_offset;
     PTE pte_2 = paddr_read(pte_2_addr, 4);
-    //printf("pt_2_base: 0x%x  pt_2_offset: 0x%x  pte_2_addr: 0x%x  pte_2: 0x%x\n",
-    //        pt_2_base, pt_2_offset, pte_2_addr, pte_2);
+    //if (vaddr < 0x80000000) {
+    //    printf("pt_2_base: 0x%x  pt_2_offset: 0x%x  pte_2_addr: 0x%x  pte_2: 0x%x\n",
+    //    pt_2_base, pt_2_offset, pte_2_addr, pte_2);
+    //}
     Assert(PTE_V(pte_2) != 0, "pt_2 is unvalid.");
    
     switch (type) {
@@ -76,7 +83,9 @@ paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type) {
     PTE paddr_base = (PTE_PPN(pte_2) << 12);
     paddr_t paddr = paddr_base | VA_OFFSET(vaddr);
 
-    Assert(paddr == vaddr, "paddr unequal vaddr!!!");
+    // only for nanos-lite,
+    // the user process is mapped to 0x40000000 which is different.
+    //Assert(paddr == vaddr, "paddr unequal vaddr!!!");
 
     return paddr;
 }
