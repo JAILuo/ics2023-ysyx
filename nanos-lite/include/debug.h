@@ -3,9 +3,13 @@
 
 #include <common.h>
 
+#ifdef LOG_INFO
 #define Log(format, ...) \
     printf("\33[1;36m[%s,%d,%s] " format "\33[0m\n", \
       __FILE__, __LINE__, __func__, ## __VA_ARGS__)
+#else
+#define Log(format, ...)
+#endif
 
 #undef panic
 #define panic(format, ...) \

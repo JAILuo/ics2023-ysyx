@@ -19,6 +19,7 @@ static Context* do_event(Event e, Context* c) {
         //      c->GPR2, c->GPR3, c->GPR4);
         break;
     case EVENT_SYSCALL: do_syscall(c); break;
+    //case EVENT_PAGEFAULT: break;
     case EVENT_IRQ_TIMER: printf("event IRQ\n"); break;
     default: panic("Unhandled event ID = %d", e.event);
   }

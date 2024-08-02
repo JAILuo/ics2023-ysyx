@@ -86,10 +86,10 @@ static int sys_execve(const char *fname, char *const argv[], char *const envp[])
 }
 
 static void sys_exit(int code) {
-    //char *argv[] = {"/bin/nterm", NULL};
-    //char *envp[] = {NULL};
-    //sys_execve("/bin/nterm", argv, envp);
-    halt(code);
+    char *argv[] = {"/bin/nterm", NULL};
+    char *envp[] = {NULL};
+    sys_execve("/bin/nterm", argv, envp);
+    //halt(code);
 }
 
 static int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {

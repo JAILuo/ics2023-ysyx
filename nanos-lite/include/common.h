@@ -7,6 +7,8 @@
 //#define MULTIPROGRAM
 //#define TIME_SHARING
 
+#define LOG_INFO
+
 
 
 #include <am.h>
