@@ -8,20 +8,26 @@ static Context* (*user_handler)(Event, Context*) = NULL;
 Context* __am_irq_handle(Context *c) {
     if (user_handler) {
     //printf("in __am_irq_handle,c:%p c->sp:%p\n", c, c->gpr[2]);
+    printf("c->a0: %d\n", c->GPR1);
+    printf("c->mcause: 0x%x\n", c->mcause);
         Event ev = {0};
         switch (c->mcause) {
           	case 0xb:
             	if (c->GPR1 == -1) { // YIELD
-                    //printf("yield\n");
                     ev.event = EVENT_YIELD; c->mepc += 4;
-                } else if (c->GPR1 >= 0 && c->GPR1 <= 19){ 
+                } else if (c->GPR1 >= 0 && c->GPR1 <= 19) { 
                     // system call (include sys_yield)
                     // NR_SYSCALL:20
-                    //printf("syscall:%d\n", c->GPR1);
-                	ev.event = EVENT_SYSCALL; c->mepc += 4;   
+                	ev.event = EVENT_SYSCALL; c->mepc += 4;
             	} else {
                 	printf("unknown exception event\n");
             	}
+            break;
+            case 0x80000007: 
+            // Note that we pass the interrupt sign directly in nemu.
+            // It should still be a bit of a problem,
+            // and S-mode is not supported yet TODO
+                ev.event = EVENT_IRQ_TIMER;
             break;
         default: ev.event = EVENT_ERROR; break;
     }
@@ -49,7 +55,10 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
     void *stack_end = kstack.end;
     Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
     // just pass the difftest
-    base->mstatus = 0x1800;
+    //base->mstatus = 0x1800;
+
+    // notice the MPIE will be restored to the MIE in nemu
+    base->mstatus |= (1 << 7);
     base->pdir = NULL;
     base->mepc = (uintptr_t)entry;
     base->gpr[2] = (uintptr_t)kstack.end; // sp

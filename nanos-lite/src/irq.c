@@ -4,6 +4,7 @@ extern void do_syscall(Context *c);
 extern Context* schedule(Context *prev);
 
 static Context* do_event(Event e, Context* c) {
+    printf("in nanos, e.event:%d\n", e.event);
   switch (e.event) {
     case EVENT_YIELD: 
         //printf("before schedule, c->mepc:%p\n", c->mepc);
@@ -20,7 +21,11 @@ static Context* do_event(Event e, Context* c) {
         break;
     case EVENT_SYSCALL: do_syscall(c); break;
     //case EVENT_PAGEFAULT: break;
-    case EVENT_IRQ_TIMER: printf("event IRQ\n"); break;
+    case EVENT_IRQ_TIMER:
+        Log("IRQ before: %p", c);
+        c = schedule(c);
+        Log("IRQ after: %p", c);
+        break;
     default: panic("Unhandled event ID = %d", e.event);
   }
 

@@ -144,9 +144,12 @@ void map(AddrSpace *as, void *va, void *pa, int prot) {
 Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
     void *stack_end = kstack.end;
     Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
-    base->pdir = as->ptr;
     // just pass the difftest
-    base->mstatus = 0x1800;
+    //base->mstatus = 0x1800;
+
+    // notice the MPIE will be restored to the MIE in nemu
+    base->mstatus |= (1 << 7);
+    base->pdir = as->ptr;
     base->gpr[2] = (uintptr_t)kstack.end;
     base->mepc = (uintptr_t)entry;
     return base;

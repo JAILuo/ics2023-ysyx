@@ -273,21 +273,11 @@ void ftrace_func_ret(vaddr_t pc) {
 
 
 // ----------- dtrace -----------
-/*
-void trace_dread(paddr_t addr, int len, IOMap *map) {
-    printf("dtrace: read %10s at " FMT_WORD "%d\n", map->name, addr, len);
-}
-
-void trace_dwrite(paddr_t addr, int len, word_t data, IOMap *map) {
-    printf("dtrace: write %10s at " FMT_WORD "%d with " FMT_WORD,
-           map->name, addr, len, data);
-}
-*/
-
-// ----------- dtrace -----------
 void etrace_log() {
     log_write("[etrace] " "exception NO: %d\n"
            "epc: %x\n", cpu.csr.mcause, cpu.csr.mepc);
+    // TODO: add more bits
+    // eg. whether to switch interrupt
 }
 
 

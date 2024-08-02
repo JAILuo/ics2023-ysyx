@@ -38,12 +38,16 @@ enum {
 }
 
 #define MRET { \
-    cpu.csr.mstatus &= ~(1<<3); \
-    cpu.csr.mstatus |= ((cpu.csr.mstatus&(1<<7))>>4); \
-    cpu.csr.mstatus |= (1<<7); \
-    cpu.csr.mstatus &= ~((1<<11)+(1<<12)); \
+    cpu.csr.mstatus &= ~(1 << 3); \
+    cpu.csr.mstatus |= ((cpu.csr.mstatus&(1 << 7)) >> 4); \
+    cpu.csr.mstatus |= (1 << 7); \
+    cpu.csr.mstatus &= ~((1 << 11)+(1 << 12)); \
     s->dnpc = cpu.csr.mepc; \
 }
+//将mstatus.MIE位置为0
+//将mstatus.MPIE还原到mstatus.MIE中
+//将mstatus.MPIE位置为1
+//将处理器模式摄制成之前保存到MPP字段的处理器模式
 
 /** 
  * you may forget add sext for your instruction
