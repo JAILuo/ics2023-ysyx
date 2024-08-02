@@ -8,8 +8,6 @@ static Context* (*user_handler)(Event, Context*) = NULL;
 Context* __am_irq_handle(Context *c) {
     if (user_handler) {
     //printf("in __am_irq_handle,c:%p c->sp:%p\n", c, c->gpr[2]);
-    printf("c->a0: %d\n", c->GPR1);
-    printf("c->mcause: 0x%x\n", c->mcause);
         Event ev = {0};
         switch (c->mcause) {
           	case 0xb:
@@ -20,7 +18,7 @@ Context* __am_irq_handle(Context *c) {
                     // NR_SYSCALL:20
                 	ev.event = EVENT_SYSCALL; c->mepc += 4;
             	} else {
-                	printf("unknown exception event\n");
+                	assert("unknown exception event\n");
             	}
             break;
             case 0x80000007: 

@@ -28,8 +28,10 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     cpu.csr.mepc = epc;
     cpu.csr.mcause = NO;
 
-    Log("[isa_raise_intr before] mie: %u, mpie: %u",
+    IFDEF(CONFIG_ETRACE,
+          Log("[isa_raise_intr before] mie: %u, mpie: %u",
                         mstatus_MIE, mstatus_MPIE);
+         );
 
     // 将mstatus.MPIE位置为0
     cpu.csr.mstatus &= ~(1 << 7);
@@ -40,8 +42,10 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     // 保存处理器模式 MPP bit[9:8] 0b11 M mode
     cpu.csr.mstatus |= ((1 << 11) + (1 << 12));
 
-    Log("[isa_raise_intr after] mie: %u, mpie: %u",
+    IFDEF(CONFIG_ETRACE,
+          Log("[isa_raise_intr after] mie: %u, mpie: %u",
                         mstatus_MIE, mstatus_MPIE);
+         );
 
     return cpu.csr.mtvec;
 }

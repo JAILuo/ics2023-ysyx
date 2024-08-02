@@ -24,12 +24,12 @@ void hello_fun(void *arg) {
   }
 }
 
-//static char *argv_pal[] = {"/bin/pal", "--skip", NULL};
+static char *argv_pal[] = {"/bin/pal", "--skip", NULL};
 //static char *argv_pal[] = {"/bin/pal", NULL};
 static char *envp[] = {NULL};
 //static char *argv[] = {NULL};
 //static char *argv_exec_test[] = {"/bin/exec-test",  NULL};
-static char *argv_menu[] = {"/bin/menu",  NULL};
+//static char *argv_menu[] = {"/bin/menu",  NULL};
 //static char *argv_nterm[] = {"/bin/nterm",  NULL};
 
 void init_proc() {
@@ -37,9 +37,9 @@ void init_proc() {
 
   printf("pcb_boot:%p\n", pcb_boot);
   //context_uload(&pcb[0], "/bin/nterm", argv_nterm, envp);
-  context_uload(&pcb[0], "/bin/menu", argv_menu, envp);
+  //context_uload(&pcb[0], "/bin/menu", argv_menu, envp);
   //context_uload(&pcb[0], "/bin/exec-test", argv_exec_test, envp);
-  //context_uload(&pcb[0], "/bin/pal", argv_pal, envp);
+  context_uload(&pcb[0], "/bin/pal", argv_pal, envp);
   //context_uload(&pcb[0], "/bin/hello", argv, envp);
   context_kload(&pcb[1], hello_fun, "A");
   //Log("pcb[0]: %p, pcb[0]->cp:%p, pcb0->cp->sp:%p", pcb[0], pcb[0].cp, pcb[0].cp->gpr[2]);
@@ -49,6 +49,26 @@ void init_proc() {
   switch_boot_pcb();
 }
 
+// 添加一个全局变量来计数调度次数
+static int schedule_count = 0;
+
+Context* schedule(Context *prev) {
+    current->cp = prev;
+    // 增加调度计数
+    schedule_count++;
+
+    // 检查是否应该切换到 hello_fun 线程
+    if (schedule_count % 10 == 0) { // 每10次调度，切换到 hello_fun 一次
+        current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
+    } else {
+        // 否则，保持当前进程不变，优先执行 menu 进程
+        current = &pcb[0];
+    }
+
+    return current->cp;
+}
+
+/*
 Context* schedule(Context *prev) {
     //current = &pcb[0]; // for pa4.2 test
 
@@ -59,4 +79,4 @@ Context* schedule(Context *prev) {
 
     return current->cp;
 }
-
+*/
