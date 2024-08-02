@@ -18,21 +18,23 @@ char magic[16] = {0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x
 #endif
 
 #if defined(__ISA_AM_NATIVE__)
-# define EXPECT_TYPE EM_X86_64
+# define ELF_MACHINE_TYPE EM_X86_64
 #elif defined(__ISA_X86__)
-# define EXPECT_TYPE EM_386
+# define ELF_MACHINE_TYPE EM_386
 #elif defined(__ISA_MIPS32__)
-# define EXPECT_TYPE
+# define ELF_MACHINE_TYPE
 #elif defined(__riscv)
-# define EXPECT_TYPE EM_RISCV
+# define ELF_MACHINE_TYPE EM_RISCV
 #elif defined(__ISA_LOONGARCH32R__)
-# define EXPECT_TYPE
+# define ELF_MACHINE_TYPE
 #elif
 # error unsupported ISA __ISA__
 #endif
 
 #define ROUNDUP(a, sz)      ((((uintptr_t)a) + (sz) - 1) & ~((sz) - 1))
 #define ROUNDDOWN(a, sz)    ((((uintptr_t)a)) & ~((sz) - 1))
+
+extern PCB *current;
 
 
 uintptr_t calc_aligned_page(uintptr_t start, size_t size, size_t *nr_page) {
@@ -48,7 +50,7 @@ uintptr_t calc_aligned_page(uintptr_t start, size_t size, size_t *nr_page) {
 static uintptr_t loader(PCB *pcb, const char *filename) {
     int fd = fs_open(filename, 0, 0);
 
-    //Log("filename:%s %p",filename, filename);
+    Log("loader: filename:%s",filename);
 
     Elf_Ehdr eh;
     fs_read(fd, &eh, sizeof(Elf_Ehdr));
@@ -57,11 +59,13 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     for (int i = 0; i < 16; i++) assert(magic[i] == eh.e_ident[i]);
 
     // check machine  
-    assert(eh.e_machine == EXPECT_TYPE);
+    assert(eh.e_machine == ELF_MACHINE_TYPE);
 
     Elf_Phdr ph[eh.e_phnum]; 
     fs_lseek(fd, eh.e_phoff, SEEK_SET);
     fs_read(fd, ph, sizeof(Elf_Phdr) * eh.e_phnum);
+
+    uintptr_t max_end = 0;
     for (size_t i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type == PT_LOAD) {
 
@@ -70,30 +74,37 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
             //memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
             //       ph[i].p_memsz - ph[i].p_filesz);
             
-            printf("ph.p_vaddr: 0x%x  ph.p_memsz: 0x%x  ph.p_filesz: 0x%x\n",
+            printf("[ph.p_vaddr]: 0x%x  [ph.p_memsz]: 0x%x  [ph.p_filesz]: 0x%x\n",
                    ph[i].p_vaddr, ph[i].p_memsz, ph[i].p_filesz);
+            if (ph[i].p_vaddr + ph[i].p_memsz > max_end) {
+                max_end = ph[i].p_vaddr + ph[i].p_memsz;
+                Log("max_end: 0x%x", max_end);
+            }
             size_t nr_page = 0;
             const uintptr_t start_addr = calc_aligned_page(ph[i].p_vaddr, ph[i].p_memsz, &nr_page);
             void *p_page = new_page(nr_page);
             void *const pages_start = p_page + (ph[i].p_vaddr - start_addr);
             assert(nr_page * PGSIZE >= ph[i].p_memsz);
+            Log("[start_addr]: 0x%x  [p_page]: %p  pages_start: %p  nr_page: %u",
+                start_addr, p_page, pages_start, nr_page);
 
             fs_lseek(fd, ph[i].p_offset, SEEK_SET);
             fs_read(fd, pages_start, ph[i].p_filesz);
             memset(pages_start + ph[i].p_filesz, 0, ph[i].p_memsz - ph[i].p_filesz);
 
-            printf("start_addr: 0x%x  p_page: %p  pages_start: %p\n",
-                   start_addr, p_page, pages_start);
             for (size_t j = 0; j < nr_page; j++) {
                 map(&pcb->as,
                     (void *)start_addr + PGSIZE * j,
                     p_page + PGSIZE * j,
-                    PTE_V | PTE_R | PTE_W | PTE_X);
+                    PTE_R | PTE_W | PTE_X);
             }
 
         }
     }
     fs_close(fd);
+
+    pcb->max_brk = (max_end % PGSIZE == 0) ? max_end : (max_end / PGSIZE + 1) * PGSIZE;
+    Log("pcb->max_brk: 0x%x\n", pcb->max_brk);
     return (uintptr_t)eh.e_entry;
 }
 
@@ -222,7 +233,7 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
 
     // create new context for new process
     uintptr_t entry = loader(pcb, filename);
-    Log("switch to user process: %s  entry:", filename, entry);
+    Log("switch to user process: %s  entry: 0x%x", filename, entry);
     pcb->cp = ucontext(&pcb->as, kstack, (void(*)())entry);
 
     pcb->cp->GPRx = (uintptr_t)base_2_app;
@@ -231,7 +242,8 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     for (int i = 0; i < 8; i++) {
         map(&pcb->as,
             ustack_top_vaddr + (PGSIZE * i),
-            new_user_stack_top + (PGSIZE * i), 0);
+            new_user_stack_top + (PGSIZE * i), 
+            PTE_R | PTE_W);
     }
     /*
     Log("user context: %p (a0=%p, sp=%p)", 

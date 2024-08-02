@@ -5,6 +5,7 @@
 #include <sys/time.h>
 #include <fs.h>
 #include <loader.h>   
+#include <memory.h>
 
 const char *syscall_name[] = {
     [SYS_exit] = "exit",
@@ -101,6 +102,10 @@ static int sys_gettimeofday(struct timeval *tv, struct timezone* tz) {
     return 0;
 }
 
+static int sys_brk(uintptr_t increment) {
+    return mm_brk(increment);
+}
+
 void do_syscall(Context *c) {
   uintptr_t a[4];
   a[0] = c->GPR1; // a7
@@ -116,7 +121,7 @@ void do_syscall(Context *c) {
     case SYS_write: c->GPRx = fs_write(a[1], (const void *)a[2], a[3]); break;
     case SYS_close: c->GPRx = fs_close(a[1]); break;
     case SYS_lseek: c->GPRx = fs_lseek(a[1], a[2], a[3]); break;
-    case SYS_brk: c->GPRx = 0; break;
+    case SYS_brk: c->GPRx = sys_brk(a[1]); break;
     case SYS_gettimeofday: c->GPRx = sys_gettimeofday((struct timeval *)a[1], (struct timezone *)a[2]); break;
     case SYS_execve:
                 c->GPRx = sys_execve((const char *)c->GPR2, (char *const*)c->GPR3, (char *const*)c->GPR4); break;

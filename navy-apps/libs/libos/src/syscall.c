@@ -55,6 +55,10 @@ intptr_t _syscall_(intptr_t type, intptr_t a0, intptr_t a1, intptr_t a2) {
   register intptr_t _gpr4 asm (GPR4) = a2;
   register intptr_t ret asm (GPRx);
   asm volatile (SYSCALL : "=r" (ret) : "r"(_gpr1), "r"(_gpr2), "r"(_gpr3), "r"(_gpr4));
+  if (ret < 0) {
+    errno = (int)(-ret);
+    ret = -1;
+  }
   return ret;
 }
 
@@ -72,12 +76,12 @@ int _write(int fd, void *buf, size_t count) {
 }
 
 extern char end;
+static void *program_break = &end;
 void *_sbrk(intptr_t increment) {
-    static intptr_t *program_break = (intptr_t *)&end;
-    if (_syscall_((intptr_t)SYS_brk, (intptr_t)increment, 0, 0) == 0) {
-        intptr_t *ret = program_break;
+    void *const old_brk = program_break;
+    if (_syscall_((intptr_t)SYS_brk, (intptr_t)(program_break + increment), 0, 0) == 0) {
         program_break += increment;
-        return (void *)ret;
+        return (void *)old_brk;
     }
     return (void *)-1;
 }
