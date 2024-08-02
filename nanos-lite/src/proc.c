@@ -41,7 +41,7 @@ void init_proc() {
   //context_uload(&pcb[0], "/bin/exec-test", argv_exec_test, envp);
   context_uload(&pcb[0], "/bin/pal", argv_pal, envp);
   //context_uload(&pcb[0], "/bin/hello", argv, envp);
-  //context_kload(&pcb[1], hello_fun, "A");
+  context_kload(&pcb[1], hello_fun, "A");
   //Log("pcb[0]: %p, pcb[0]->cp:%p, pcb0->cp->sp:%p", pcb[0], pcb[0].cp, pcb[0].cp->gpr[2]);
   //Log("pcb[1]: %p, pcb[1]->cp:%p, pcb1->cp->sp:%p", pcb[1], pcb[1].cp, pcb[1].cp->gpr[2]);
   //printf("in init_proc pcb0->cp->mepc:%p\n",pcb[0].cp->mepc);
@@ -50,11 +50,13 @@ void init_proc() {
 }
 
 Context* schedule(Context *prev) {
-    //current->cp = prev;
+    //current = &pcb[0]; // for pa4.2 test
+
+    current->cp = prev;
     //Log("prev->cp:%p", current->cp);
-    //current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
-    current = &pcb[0];
+    current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
     //Log("new->cp:%p", current->cp);
+
     return current->cp;
 }
 

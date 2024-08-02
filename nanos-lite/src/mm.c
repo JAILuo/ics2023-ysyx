@@ -8,10 +8,10 @@ static void *pf = NULL;
 void* new_page(size_t nr_page) {
     // return low address
     void *old_pf = pf;
-    Log("before alloc: %p", old_pf);
+    //Log("before alloc: %p", old_pf);
     pf += nr_page * PGSIZE;
     assert(pf <= heap.end);
-    Log("after alloc, ustack.start/stack_bottom: %p", pf);
+    //Log("after alloc, ustack.start/stack_bottom: %p", pf);
     return old_pf;
 }
 
@@ -41,8 +41,8 @@ int mm_brk(uintptr_t brk) {
         void *va_base = (void *)(current->max_brk);
         void *pa_base = new_page(nr_page);
 
-        Log("[gap]: 0x%x  [nr_page]: 0x%x  [va_base]: %p  [pa_base]: %p",
-            gap, nr_page, va_base, pa_base);
+        //Log("[gap]: 0x%x  [nr_page]: 0x%x  [va_base]: %p  [pa_base]: %p",
+        //    gap, nr_page, va_base, pa_base);
         for (int i = 0; i < nr_page; i++) {
             map(&current->as,
                 va_base + (i * PGSIZE),

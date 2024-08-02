@@ -40,8 +40,8 @@ extern PCB *current;
 uintptr_t calc_aligned_page(uintptr_t start, size_t size, size_t *nr_page) {
     const uintptr_t start_aligned = (start) & ~((uintptr_t)(PGSIZE) - 1); //down
     const uintptr_t end_aligned = (((uintptr_t)start + size) + (PGSIZE) - 1) & ~((PGSIZE) - 1);
-    printf("start_aligned: 0x%x  end_aligned: 0x%x  nr_page: 0x%x\n",
-           start_aligned, end_aligned, (end_aligned - start_aligned)/PGSIZE);
+    //printf("start_aligned: 0x%x  end_aligned: 0x%x  nr_page: 0x%x\n",
+    //       start_aligned, end_aligned, (end_aligned - start_aligned)/PGSIZE);
     *nr_page = (end_aligned - start_aligned) / PGSIZE;
     return start_aligned;
 }
@@ -50,7 +50,7 @@ uintptr_t calc_aligned_page(uintptr_t start, size_t size, size_t *nr_page) {
 static uintptr_t loader(PCB *pcb, const char *filename) {
     int fd = fs_open(filename, 0, 0);
 
-    Log("loader: filename:%s",filename);
+    //Log("loader: filename:%s",filename);
 
     Elf_Ehdr eh;
     fs_read(fd, &eh, sizeof(Elf_Ehdr));
@@ -74,19 +74,19 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
             //memset((void *)(uintptr_t)ph[i].p_vaddr + ph[i].p_filesz, 0, 
             //       ph[i].p_memsz - ph[i].p_filesz);
             
-            printf("[ph.p_vaddr]: 0x%x  [ph.p_memsz]: 0x%x  [ph.p_filesz]: 0x%x\n",
-                   ph[i].p_vaddr, ph[i].p_memsz, ph[i].p_filesz);
+            //printf("[ph.p_vaddr]: 0x%x  [ph.p_memsz]: 0x%x  [ph.p_filesz]: 0x%x\n",
+            //       ph[i].p_vaddr, ph[i].p_memsz, ph[i].p_filesz);
             if (ph[i].p_vaddr + ph[i].p_memsz > max_end) {
                 max_end = ph[i].p_vaddr + ph[i].p_memsz;
-                Log("max_end: 0x%x", max_end);
+                //Log("max_end: 0x%x", max_end);
             }
             size_t nr_page = 0;
             const uintptr_t start_addr = calc_aligned_page(ph[i].p_vaddr, ph[i].p_memsz, &nr_page);
             void *p_page = new_page(nr_page);
             void *const pages_start = p_page + (ph[i].p_vaddr - start_addr);
             assert(nr_page * PGSIZE >= ph[i].p_memsz);
-            Log("[start_addr]: 0x%x  [p_page]: %p  pages_start: %p  nr_page: %u",
-                start_addr, p_page, pages_start, nr_page);
+            //Log("[start_addr]: 0x%x  [p_page]: %p  pages_start: %p  nr_page: %u",
+            //    start_addr, p_page, pages_start, nr_page);
 
             fs_lseek(fd, ph[i].p_offset, SEEK_SET);
             fs_read(fd, pages_start, ph[i].p_filesz);

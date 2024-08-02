@@ -50,6 +50,7 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
     Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
     // just pass the difftest
     base->mstatus = 0x1800;
+    base->pdir = NULL;
     base->mepc = (uintptr_t)entry;
     base->gpr[2] = (uintptr_t)kstack.end; // sp
     base->gpr[10] = (uintptr_t)arg; // a0

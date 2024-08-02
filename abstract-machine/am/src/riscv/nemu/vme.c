@@ -38,7 +38,6 @@ bool vme_init(void* (*pgalloc_f)(int), void (*pgfree_f)(void*)) {
   for (i = 0; i < LENGTH(segments); i ++) {
     void *va = segments[i].start;
     for (; va < segments[i].end; va += PGSIZE) {
-        //printf("11111111111111:%d\n", j);
       map(&kas, va, va, 0);
     }
   }
@@ -51,6 +50,7 @@ bool vme_init(void* (*pgalloc_f)(int), void (*pgfree_f)(void*)) {
 
 void protect(AddrSpace *as) {
   PTE *updir = (PTE*)(pgalloc_usr(PGSIZE));
+  //printf("updir: %p\n", updir);
   as->ptr = updir;
   as->area = USER_SPACE;
   as->pgsize = PGSIZE;
@@ -83,7 +83,6 @@ void __am_switch(Context *c) {
 // P111
 // SXLEN-bit
 // [PTE] Sv32: 4byte, Sv39: 8byte
-typedef uintptr_t PTE;
 
 
 // If it's not a second-order one?
