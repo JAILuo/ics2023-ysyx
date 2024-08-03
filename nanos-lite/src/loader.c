@@ -6,7 +6,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-
 #ifdef __LP64__
 # define Elf_Ehdr Elf64_Ehdr
 # define Elf_Phdr Elf64_Phdr
@@ -34,9 +33,6 @@ char magic[16] = {0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x
 #define ROUNDUP(a, sz)      ((((uintptr_t)a) + (sz) - 1) & ~((sz) - 1))
 #define ROUNDDOWN(a, sz)    ((((uintptr_t)a)) & ~((sz) - 1))
 
-extern PCB *current;
-
-
 uintptr_t calc_aligned_page(uintptr_t start, size_t size, size_t *nr_page) {
     const uintptr_t start_aligned = (start) & ~((uintptr_t)(PGSIZE) - 1); //down
     const uintptr_t end_aligned = (((uintptr_t)start + size) + (PGSIZE) - 1) & ~((PGSIZE) - 1);
@@ -46,7 +42,6 @@ uintptr_t calc_aligned_page(uintptr_t start, size_t size, size_t *nr_page) {
     return start_aligned;
 }
 
-//static int cptest = 1;
 static uintptr_t loader(PCB *pcb, const char *filename) {
     int fd = fs_open(filename, 0, 0);
 
@@ -76,9 +71,9 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
             
             //printf("[ph.p_vaddr]: 0x%x  [ph.p_memsz]: 0x%x  [ph.p_filesz]: 0x%x\n",
             //       ph[i].p_vaddr, ph[i].p_memsz, ph[i].p_filesz);
+
             if (ph[i].p_vaddr + ph[i].p_memsz > max_end) {
                 max_end = ph[i].p_vaddr + ph[i].p_memsz;
-                //Log("max_end: 0x%x", max_end);
             }
             size_t nr_page = 0;
             const uintptr_t start_addr = calc_aligned_page(ph[i].p_vaddr, ph[i].p_memsz, &nr_page);
@@ -103,8 +98,8 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     }
     fs_close(fd);
 
-    pcb->max_brk = (max_end % PGSIZE == 0) ? max_end : (max_end / PGSIZE + 1) * PGSIZE;
-    //Log("pcb->max_brk: 0x%x", pcb->max_brk);
+    pcb->max_brk = (max_end % PGSIZE == 0) ?
+                    max_end : (max_end / PGSIZE + 1) * PGSIZE;
     return (uintptr_t)eh.e_entry;
 }
 
@@ -120,25 +115,23 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
         .end = pcb->stack + STACK_SIZE
     };
     pcb->cp = kcontext(stack, entry, arg);
-    /*
-      Log("kernel context: %p (a0=%p, sp=%p)",
-      pcb->cp,
-      (void *)pcb->cp->GPRx,
-      (void *)pcb->cp->gpr[2]);
-      */
+    Log("kernel context: %p (a0=%p, sp=%p)",
+        pcb->cp,
+        (void *)pcb->cp->GPRx,
+        (void *)pcb->cp->gpr[2]);
 }
 
 static size_t len_varargs(char *const varargs[]) {
-  if (varargs == NULL) return 0;
+    if (varargs == NULL) return 0;
 
-  Log("scanning varargs list [%p]", varargs);
-  size_t len = 0;
-  while (varargs[len] != NULL) {
-    Log("+0x%x: %p -> %p -> %s", sizeof(char *) * len, &varargs[len], varargs[len], varargs[len]);
-    len++;
-  }
-  Log("+0x%x: %p -> %p", sizeof(char *) * len, &varargs[len], varargs[len]);
-  return len;
+    Log("scanning varargs list [%p]", varargs);
+    size_t len = 0;
+    while (varargs[len] != NULL) {
+        Log("+0x%x: %p -> %p -> %s", sizeof(char *) * len, &varargs[len], varargs[len], varargs[len]);
+        len++;
+    }
+    Log("+0x%x: %p -> %p", sizeof(char *) * len, &varargs[len], varargs[len]);
+    return len;
 }
 
 //static int test = 1;
@@ -234,9 +227,13 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
     // create new context for new process
     uintptr_t entry = loader(pcb, filename);
     Log("switch to user process: %s  entry: 0x%x", filename, entry);
+    
+    // create new user stack and set some regs.
     pcb->cp = ucontext(&pcb->as, kstack, (void(*)())entry);
-
     pcb->cp->GPRx = (uintptr_t)base_2_app;
+
+
+    pcb->cp->gpr[2] = (uintptr_t)(pcb->as.area.end - (new_user_stack_bottom - space_count));
 
     void *ustack_top_vaddr = pcb->as.area.end - 8 * PGSIZE;
     for (int i = 0; i < 8; i++) {
@@ -245,10 +242,8 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
             new_user_stack_top + (PGSIZE * i), 
             PTE_R | PTE_W);
     }
-    /*
     Log("user context: %p (a0=%p, sp=%p)", 
         pcb->cp,
         (void *)pcb->cp->GPRx,
         (void *)pcb->cp->gpr[2]);
-        */
 }

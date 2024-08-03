@@ -45,7 +45,8 @@ paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type) {
     //printf("vaddr: 0x%x\n", vaddr);
     
     // (satp.PPN * PGSIZE) + (VA[31:22] * PTESIZE)
-    //PTE pt_dir_base = (SATP_PPN(pt_base_reg) << 12);
+    // PTE pt_dir_base = (SATP_PPN(pt_base_reg) << 12);
+    // notice the pt_base_reg is not pointer, can not add len of the data type
     PTE pt_dir_base = (pt_base_reg << 12);
     PTE pt_dir_offset = (VA_VPN_1(vaddr) << 2);
     PTE pt_dir = pt_dir_base + pt_dir_offset;

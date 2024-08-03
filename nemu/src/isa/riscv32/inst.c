@@ -201,7 +201,6 @@ static int decode_exec(Decode *s) {
           CSRs(imm) = src1; R(rd) = t);
   INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, volatile word_t t = CSRs(imm);
           CSRs(imm) = t | src1; R(rd) = t);
-  // csrrd mulhu also need t like 
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc); 
           IFDEF(CONFIG_ETRACE,etrace_log();));
   INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , I, MRET);
@@ -209,6 +208,7 @@ static int decode_exec(Decode *s) {
 
 
   /* RV32M Multiply Extension */
+  // TODO: maybe need to add exentison for mulhu
   INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , R, R(rd) = src1 * src2);
   INSTPAT("0000001 ????? ????? 001 ????? 01100 11", mulh   ,
           R, R(rd) = BITS(((int64_t)(int32_t)src1 * (int32_t)src2), 63,32));

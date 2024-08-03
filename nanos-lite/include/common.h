@@ -4,11 +4,10 @@
 /* Uncomment these macros to enable corresponding functionality. */
 #define HAS_CTE
 #define HAS_VME
-//#define MULTIPROGRAM
-//#define TIME_SHARING
+#define MULTIPROGRAM
+#define TIME_SHARING
 
 #define LOG_INFO
-
 
 
 #include <am.h>

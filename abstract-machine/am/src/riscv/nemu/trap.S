@@ -35,47 +35,56 @@ f(30) f(31)
 #define PUSH(n) STORE concat(x, n), (n * XLEN)(sp);
 #define POP(n)  LOAD  concat(x, n), (n * XLEN)(sp);
 
-#define CONTEXT_SIZE    ((NR_REGS + 3 + 2) * XLEN)
-
-#define OFFSET_SP       (2 * XLEN)
-#define OFFSET_CAUSE    ((NR_REGS + 0) * XLEN)
-#define OFFSET_STATUS   ((NR_REGS + 1) * XLEN)
-#define OFFSET_EPC      ((NR_REGS + 2) * XLEN)
-#define OFFSET_NP       ((NR_REGS + 4) * XLEN)
+#define CONTEXT_SIZE  ((NR_REGS + 3 + 2) * XLEN)
+#define OFFSET_SP     ( 2 * XLEN)
+#define OFFSET_T6     (31 * XLEN)
+#define OFFSET_CAUSE  ((NR_REGS + 0) * XLEN)
+#define OFFSET_STATUS ((NR_REGS + 1) * XLEN)
+#define OFFSET_EPC    ((NR_REGS + 2) * XLEN)
+#define OFFSET_NP     ((NR_REGS + 4) * XLEN)
 
 .align 3
 .globl __am_asm_trap
 __am_asm_trap:
-  csrrw sp, mscratch, sp  # (1) atomically exchange `sp` and `mscratch` (aka `ksp`)
-  bnez sp, L_SAVE_CTX     # (2) take the branch if we trapped from user
-  csrrw sp, mscratch, sp  # (3) if we trapped from kernel, restore the original `sp`
+  csrrw sp, mscratch, sp   // (1) atomically exchange sp and mscratch
+  bnez sp, next_privilege  // (2) take the branch if we trapped from user
+  csrrw sp, mscratch, sp   // (3) if we trapped from kernel, restore the original sp
 
-L_SAVE_CTX:
+# notice the conditional statements in assembly.
+next_privilege:
   addi sp, sp, -CONTEXT_SIZE
+  MAP(REGS, PUSH) # 先入栈保存用到的GPR。 如果后面save_context再保存的话，存的就是切换内核栈用到的一些寄存器了。
 
-  MAP(REGS_LO16, PUSH)
-  
   # c->np = (ksp == 0) ? KERNEL : USER;
   csrr t0, mscratch
-  beqz t0, L_SAVE_KERNEL
+  beqz t0, save_kernel_stack
 
-  li t0, PRIV_MODE_U
-  csrr t1, mscratch  # in this case, original running stack is in `mscratch`
-  j L_SAVE_HI16
+  csrr t0, mscratch
+  li t1, PRIV_MODE_U
+  j save_context
 
-L_SAVE_KERNEL:
-  li t0, PRIV_MODE_M
-  mv t1, sp  # in this case, original running stack is in `sp` with `-CONTEXT_SIZE` added
-  addi t1, t1, CONTEXT_SIZE
+save_kernel_stack:
+  mv t0, sp
+  li t1, PRIV_MODE_M
+  addi t0, t0, CONTEXT_SIZE
 
-L_SAVE_HI16:
-  STORE t0, OFFSET_NP(sp)
-  STORE t1, OFFSET_SP(sp)
+# 我之后要使用这个 sp 和 priv，把它入栈
+# 但是又不能影响到要保存的上下文
+# 能不能直接用这里的保存的上下文结构里的sp 和 t1？
+# 有区别吗？有吧。
+# 我切换到内核线程，那这个时候的栈指针应该指向的是内核栈保存的上下文。
+# 他里面的各个寄存器怎么会一样？
+# 要不直接再扩大一下栈空间？
+# 不对，一样的，保存之前都进行过同样的操作，应该可以.
+# 哦，所以在刚开始保存的时候，就要开栈了。
+# 哦，都帮我们写好了这个OFFSET_SP
+
+save_context:
+  STORE t0, OFFSET_SP(sp) 
+  STORE t1, OFFSET_NP(sp)
 
   # ksp = 0;
   csrw mscratch, zero
-
-  MAP(REGS_HI16, PUSH)
 
   csrr t0, mcause
   csrr t1, mstatus
@@ -95,24 +104,25 @@ L_SAVE_HI16:
   jal __am_irq_handle
   jal __am_switch
   mv sp, a0
-  
-  # `if (c->np != USER)` ...
+
+  # c->np != USER
   LOAD t0, OFFSET_NP(sp)
   li t1, PRIV_MODE_U
-  bne t0, t1, L_RESTORE_CTX  # ... then we restore original `sp` from context
+  bne t0, t1, restore_ksp_ok
 
-  # otherwise, we run `ksp = $sp` first
+  # c->np == USER
+  # the value of ksp is the bottom of the kernel stack
   addi t0, sp, CONTEXT_SIZE
   csrw mscratch, t0
-  
-L_RESTORE_CTX:
+
+restore_ksp_ok:
   LOAD t1, OFFSET_STATUS(sp)
   LOAD t2, OFFSET_EPC(sp)
   csrw mstatus, t1
   csrw mepc, t2
 
-  MAP(REGS_HI16, POP)
-  MAP(REGS_LO16, POP)
+  MAP(REGS, POP)
 
+  # do not forget to restore the sp before entering the CTE
   LOAD sp, OFFSET_SP(sp)
   mret

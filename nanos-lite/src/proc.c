@@ -59,15 +59,12 @@ int fg_pcb = 1;
 static int schedule_count = 0;
 Context* schedule(Context *prev) {
     current->cp = prev;
-    // 增加调度计数
     schedule_count++;
 
-    // 检查是否应该切换到 hello_fun 线程
-    if (schedule_count % 20 == 0) { // 每10次调度，切换到 hello_fun 一次
+    if (schedule_count % 20 == 0) {
         current = &pcb[0];
         //current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
     } else {
-        // 否则，保持当前进程不变，优先执行 menu 进程
         current = &pcb[fg_pcb];
     }
 
