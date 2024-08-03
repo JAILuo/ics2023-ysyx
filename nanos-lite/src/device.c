@@ -16,6 +16,8 @@ static const char *keyname[256] __attribute__((used)) = {
   AM_KEYS(NAME)
 };
 
+extern int fg_pcb;
+
 size_t serial_write(const void *buf, size_t offset, size_t len) {
     //yield(); // simulate slow behavior, the same below
     for (int i = 0; i < len; i++) { 
@@ -30,6 +32,13 @@ size_t events_read(void *buf, size_t offset, size_t len) {
     if (ev.keycode == AM_KEY_NONE) {
         memset(buf, '\0', sizeof(void *));
         return 0;
+    } else {
+        switch (ev.keycode) {
+        case AM_KEY_F1: fg_pcb = 1; break;
+        case AM_KEY_F2: fg_pcb = 2; break;
+        case AM_KEY_F3: fg_pcb = 3; break;
+        default: break;
+        }
     } 
     return sprintf(buf, "%s %s\n\0", ev.keydown ? "kd" : "ku", keyname[ev.keycode]);
 }
