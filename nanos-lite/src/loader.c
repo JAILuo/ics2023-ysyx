@@ -104,7 +104,7 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
     fs_close(fd);
 
     pcb->max_brk = (max_end % PGSIZE == 0) ? max_end : (max_end / PGSIZE + 1) * PGSIZE;
-    Log("pcb->max_brk: 0x%x\n", pcb->max_brk);
+    //Log("pcb->max_brk: 0x%x", pcb->max_brk);
     return (uintptr_t)eh.e_entry;
 }
 

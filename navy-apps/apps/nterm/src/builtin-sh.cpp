@@ -9,7 +9,6 @@
 
 #define test
 
-
 char handle_key(SDL_Event *ev);
 
 static void sh_printf(const char *format, ...) {

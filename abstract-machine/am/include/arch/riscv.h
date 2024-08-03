@@ -1,6 +1,7 @@
 #ifndef ARCH_H__
 #define ARCH_H__
 
+#include <stdint.h>
 #ifdef __riscv_e
 #define NR_REGS 16
 #else
@@ -11,6 +12,7 @@ struct Context {
   uintptr_t gpr[NR_REGS]; // 32
   uintptr_t mcause, mstatus, mepc;  // 3
   void *pdir;
+  uintptr_t mscratch;
 };
 
 #ifdef __riscv_e

@@ -23,6 +23,7 @@ typedef struct {
     word_t mstatus;
     word_t mepc;
     word_t mtvec;
+    word_t mscratch;
     word_t satp;
     // add more...
 } riscv_CPU_csr;

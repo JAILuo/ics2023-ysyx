@@ -31,7 +31,7 @@ void free_page(void *p) {
 
 /* The brk() system call handler. */
 int mm_brk(uintptr_t brk) {
-    Log("brk: 0x%x  current->max_brk: 0x%x", brk, current->max_brk);
+    //Log("brk: 0x%x  current->max_brk: 0x%x", brk, current->max_brk);
     if (current->max_brk == 0) {
         current->max_brk = (brk % PGSIZE == 0) ?
                             brk : (brk / PGSIZE + 1) * PGSIZE;
@@ -51,7 +51,7 @@ int mm_brk(uintptr_t brk) {
         }
         current->max_brk += nr_page * PGSIZE;
     }
-    Log("current->max_brk: %p", (void *)current->max_brk);
+    //Log("current->max_brk: %p", (void *)current->max_brk);
     return 0;
 }
 
