@@ -12,7 +12,7 @@ struct Context {
   uintptr_t gpr[NR_REGS]; // 32
   uintptr_t mcause, mstatus, mepc;  // 3
   void *pdir;
-  uintptr_t mscratch;
+  uintptr_t np;
 };
 
 #define PRIV_MODE_U 0
