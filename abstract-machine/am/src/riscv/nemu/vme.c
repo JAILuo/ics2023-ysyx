@@ -1,5 +1,6 @@
 #include <am.h>
 #include <nemu.h>
+#include <riscv/riscv.h>
 #include <klib.h>
 #include <stdint.h>
 
@@ -148,6 +149,7 @@ Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
     // notice the MPIE will be restored to the MIE in nemu
     base->mstatus |= (1 << 7);
     base->pdir = as->ptr;
+    base->np = PRIV_MODE_U;
     base->gpr[2] = (uintptr_t)kstack.end;
     base->mepc = (uintptr_t)entry;
     return base;
