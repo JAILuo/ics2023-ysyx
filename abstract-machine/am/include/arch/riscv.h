@@ -15,6 +15,11 @@ struct Context {
   uintptr_t mscratch;
 };
 
+#define PRIV_MODE_U 0
+#define PRIV_MODE_S 1
+#define PRIV_MODE_M 3
+
+
 #ifdef __riscv_e
 #define GPR1 gpr[15] // a5
 #else

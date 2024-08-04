@@ -74,11 +74,6 @@ static int sys_execve(const char *fname, char *const argv[], char *const envp[])
     fs_close(fd);
 
     Log("execve, switch to \"%s\" app", fname);
-    /*
-    for(int i = 0; i < 2; i++) {
-        printf("in sys_execve, argv[%d]: %s\n", i, argv[i]);
-    }
-    */
     context_uload(current, fname, argv, envp);
     switch_boot_pcb();
     yield();

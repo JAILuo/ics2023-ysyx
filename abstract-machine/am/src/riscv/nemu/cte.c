@@ -58,6 +58,7 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
     // notice the MPIE will be restored to the MIE in nemu
     base->mstatus |= (1 << 7);
     base->pdir = NULL;
+    base->np = PRIV_MODE_M;
     base->mepc = (uintptr_t)entry;
     base->gpr[2] = (uintptr_t)kstack.end; // sp
     base->gpr[10] = (uintptr_t)arg; // a0
