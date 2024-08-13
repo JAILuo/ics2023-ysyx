@@ -45,6 +45,7 @@ f(30) f(31)
 .align 3
 .globl __am_asm_trap
 __am_asm_trap:
+# switch to kernel stackf
   csrrw sp, mscratch, sp   // (1) atomically exchange sp and mscratch
   bnez sp, next_privilege  // (2) take the branch if we trapped from user
   csrrw sp, mscratch, sp   // (3) if we trapped from kernel, restore the original sp
