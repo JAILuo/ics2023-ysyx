@@ -22,6 +22,7 @@ static Context* do_event(Event e, Context* c) {
     //case EVENT_PAGEFAULT: break;
     case EVENT_IRQ_TIMER:
         //Log("IRQ before: %p", c);
+        //printf("IRQ test...\n");
         c = schedule(c);
         //Log("IRQ after: %p", c);
         break;

@@ -121,7 +121,6 @@ static int decode_exec(Decode *s) {
   /* 指令模式匹配和执行 */
   INSTPAT_START();
   /*                rs2   rs1        rd   opcode   */
-  /* 按照值令格式分*/
   /* RV32I Base Integer Instructions */
   /* R type */
   INSTPAT("0000000 ????? ????? 000 ????? 01100 11", add    , R, R(rd) = src1 + src2);

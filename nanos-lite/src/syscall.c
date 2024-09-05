@@ -8,27 +8,7 @@
 #include <memory.h>
 
 const char *syscall_name[] = {
-    [SYS_exit] = "exit",
-    [SYS_yield] = "yield",
-    [SYS_open] = "open",
-    [SYS_read] = "read",
-    [SYS_write] = "write",
-    [SYS_kill] = "kill",
-    [SYS_getpid] = "getpid",
-    [SYS_close] = "close",
-    [SYS_lseek] = "lseek",
-    [SYS_brk] = "brk",
-    [SYS_fstat] = "fstat",
-    [SYS_time] = "time",
-    [SYS_signal] = "signal",
-    [SYS_execve] = "execve",
-    [SYS_fork] = "fork",
-    [SYS_link] = "link",
-    [SYS_unlink] = "unlink",
-    [SYS_wait] = "wait",
-    [SYS_times] = "times",
-    [SYS_gettimeofday] = "gettimeofday"
-    // more...
+    SYSCALLS(SYSCALL_STRINGS_NAMES)
 };
 
 //#define CONFIG_STRACE 
@@ -40,7 +20,7 @@ const char *syscall_name[] = {
 #define IS_SYS_OPEN(type) ((type) == SYS_open)
 
 static inline void Strace(Context *c, intptr_t type, intptr_t a0, intptr_t a1, intptr_t a2) {
-    #define FORMAT_STRACE "syscall: %s num: %d(d)\n" \
+    #define FORMAT_STRACE "syscall: %s sys_num: %d(d)\n" \
                           "        reg: a0: 0x%x  a1: 0x%x  a2: 0x%x\n" \
                           "        ret: 0x%x\n"
     const char *file_name = (IS_SYS_OPEN(type)) ? ((const char *)a0) :

@@ -28,9 +28,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "common.h"
-#include "macro.h"
-#include "memory/vaddr.h"
+#include <common.h>
+#include <macro.h>
+#include <memory/vaddr.h>
 #include <data-structure/stack.h>
 
 enum {
@@ -161,7 +161,6 @@ static bool make_token(char *e) {
 #define NEEDS_STRING(type) ((type) == TK_NUM || (type) == TK_REG_NAME)
 
 /* TODO: allocate memory when we need a string */
-
 static int add_token(char *substr_start, int substr_len, int i) {
     // skip the space.
     if (rules[i].token_type == TK_NOTYPE) {
@@ -481,10 +480,14 @@ static void handle_pointer(int p, int q) {
     }
 }
 
-/* TODO: maybe we can merge the is_xx or (str2num and handle_pointer) */
-static void tokens_pre_processing(void) {
+static void is_unary(void) {
     is_neg();
     is_deref();
+}
+
+/* TODO: maybe we can merge the is_xx or (str2num and handle_pointer) */
+static void tokens_pre_processing(void) {
+    is_unary();
     
     str2num(0, nr_token);
     handle_pointer(0, nr_token);

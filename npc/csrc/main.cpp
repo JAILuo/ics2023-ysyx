@@ -37,7 +37,7 @@ int main(int argc,char **argv) {
 		contextp->timeInc(1); //推动仿真时间
 
         printf("a = %d, b = %d, f = %d\n", a, b, (top->ledr && 0xffff));
-        //assert(top->ledr == a ^ b);
+        assert(top->ledr == a ^ b);
         nvboard_update();
     }
     delete top;

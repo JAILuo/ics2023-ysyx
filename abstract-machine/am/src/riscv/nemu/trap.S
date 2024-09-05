@@ -45,27 +45,29 @@ f(30) f(31)
 .align 3
 .globl __am_asm_trap
 __am_asm_trap:
-# switch to kernel stackf
+# switch to kernel stack
   csrrw sp, mscratch, sp   // (1) atomically exchange sp and mscratch
-  bnez sp, next_privilege  // (2) take the branch if we trapped from user
+  bnez sp, create_context_space  // (2) take the branch if we trapped from user
   csrrw sp, mscratch, sp   // (3) if we trapped from kernel, restore the original sp
-
+						   // after above 3 inst, sp must be ksp
 # notice the conditional statements in assembly.
-next_privilege:
+create_context_space:
   addi sp, sp, -CONTEXT_SIZE
-  MAP(REGS, PUSH) # 先入栈保存用到的GPR。 如果后面save_context再保存的话，存的就是切换内核栈用到的一些寄存器了。
+  MAP(REGS, PUSH)
+  # 先入栈保存用到的GPR, 也就是进入trap 前的相关寄存器
+  # 如果后面save_kernel_context再保存的话，存的就是切换内核栈用到的一些寄存器了。
 
   # c->np = (ksp == 0) ? KERNEL : USER;
   csrr t0, mscratch
   beqz t0, save_kernel_stack
 
-  csrr t0, mscratch
-  li t1, PRIV_MODE_U
-  j save_context
+  csrr t0, mscratch    # exception from user
+  li t1, PRIV_MODE_U   # c->np = USER
+  j save_kernel_context
 
 save_kernel_stack:
-  mv t0, sp
-  li t1, PRIV_MODE_M
+  mv t0, sp			   # exception from kernel
+  li t1, PRIV_MODE_M   # c->np = KERNEL
   addi t0, t0, CONTEXT_SIZE
 
 # 我之后要使用这个 sp 和 priv，把它入栈
@@ -73,26 +75,26 @@ save_kernel_stack:
 # 能不能直接用这里的保存的上下文结构里的sp 和 t1？
 # 有区别吗？有吧。
 # 我切换到内核线程，那这个时候的栈指针应该指向的是内核栈保存的上下文。
-# 他里面的各个寄存器怎么会一样？
+# 他里面的各个寄存器应该不一样？
 # 要不直接再扩大一下栈空间？
 # 不对，一样的，保存之前都进行过同样的操作，应该可以.
 # 哦，所以在刚开始保存的时候，就要开栈了。
 # 哦，都帮我们写好了这个OFFSET_SP
 
-save_context:
+save_kernel_context:
+  # ksp = 0; support re-entry of CTE
+  csrw mscratch, zero
+
   STORE t0, OFFSET_SP(sp) 
   STORE t1, OFFSET_NP(sp)
 
-  # ksp = 0;
-  csrw mscratch, zero
+ csrr t0, mcause
+ csrr t1, mstatus
+ csrr t2, mepc
 
-  csrr t0, mcause
-  csrr t1, mstatus
-  csrr t2, mepc
-
-  STORE t0, OFFSET_CAUSE(sp)
-  STORE t1, OFFSET_STATUS(sp)
-  STORE t2, OFFSET_EPC(sp)
+ STORE t0, OFFSET_CAUSE(sp)
+ STORE t1, OFFSET_STATUS(sp)
+ STORE t2, OFFSET_EPC(sp)
 
   # set mstatus.MPRV to pass difftest
   li a0, (1 << 17)
@@ -100,9 +102,7 @@ save_context:
   csrw mstatus, t1
 
   mv a0, sp
-  jal __am_get_cur_as
   jal __am_irq_handle
-  jal __am_switch
   mv sp, a0
 
   # c->np != USER
