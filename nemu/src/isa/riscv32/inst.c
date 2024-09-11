@@ -15,7 +15,6 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <limits.h>
 #include "common.h"
 #include "local-include/reg.h"
 #include "macro.h"
@@ -222,18 +221,19 @@ static int decode_exec(Decode *s) {
           R(rd) = BITS(((uint64_t)src1 * (uint64_t)src2), 63,32));
   // mulw: only in RV64M
 
+  // 
   INSTPAT("0000001 ????? ????? 100 ????? 01100 11", div    , R, 
-          if (src2 == 0) R(rd) = -1; // see the manual
+          if (src2 == 0) R(rd) = -1;
           else {
-            R(rd) = ((int32_t)src1 == INT_MIN && (int32_t)src2 == -1) ?
-                    src1 : ((sword_t)src1 / (sword_t)src2);
+            R(rd) = ((int32_t)src1 == INT32_MIN && (int32_t)src2 == -1) ?
+                    src1 : ((int32_t)src1 / (int32_t)src2);
           });
   INSTPAT("0000001 ????? ????? 101 ????? 01100 11", divu   , R, 
           R(rd) = (src2 == 0) ? 0xffffffff : src1 / src2);
   INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem    , R,
-          if (src2 == 0) R(rd) = src1; // see the manual
+          if (src2 == 0) R(rd) = src1;
           else {
-            R(rd) = ((int32_t)src1 == INT_MIN && (int32_t)src2 == -1) ?
+            R(rd) = ((int32_t)src1 == INT32_MIN && (int32_t)src2 == -1) ?
                     0 : ((word_t)((sword_t)src1 % (sword_t)src2));
           });
   INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , R,
