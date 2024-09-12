@@ -22,6 +22,23 @@
 #define PRIV_MODE_S 1
 #define PRIV_MODE_M 3
 
+enum {
+  EXCP_INST_UNALIGNED = 0,
+  EXCP_INST_ACCESS = 1,
+  EXCP_INST = 2,
+  EXCP_BREAK = 3,
+  EXCP_READ_UNALIGNED = 4,
+  EXCP_READ_ACCESS = 5,
+  EXCP_STORE_UNALIGNED = 6,
+  EXCP_STORE_ACCESS = 7,
+  EXCP_U_CALL = 8,
+  EXCP_S_CALL = 9,
+  EXCP_M_CALL = 11,
+  EXCP_INST_PAGE = 12,
+  EXCP_READ_PAGE = 13,
+  EXCP_STORE_PAGE = 14,
+  // EXCP_15 :AMO pagefault
+};
 
 typedef struct {
     word_t mcause;

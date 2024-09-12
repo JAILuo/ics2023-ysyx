@@ -34,17 +34,23 @@ enum {
   TYPE_N, // none
 };
 
-// static word_t ecall_func(word_t epc) {
-//     return isa_raise_intr(cpu.priv, epc);
-// } 
+static word_t ecall_func(word_t epc) {
+    int excp_code;
+    switch (cpu.priv) {
+    case PRIV_MODE_M: excp_code = EXCP_M_CALL; break;
+    case PRIV_MODE_U: excp_code = EXCP_U_CALL; break;
+    default: panic("privi: %d not implement.", cpu.priv);
+    }
+    return isa_raise_intr(excp_code, epc);
+} 
 
 //TODO: need to support complete mcause
 //      Now just set PRIV_MODE to mcause, 
 //      and even the position of PRIV_MODE is wrong(should be )
 
-#define ECALL(dnpc) {\
-    dnpc = (isa_raise_intr(cpu.priv, s->pc)); \
-}
+// #define ECALL(dnpc) {
+//     dnpc = (isa_raise_intr(cpu.priv, s->pc)); 
+// }
 
 #define MRET { \
     cpu.csr.mstatus &= ~(1 << 3); \
@@ -214,7 +220,7 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 011 ????? 11100 11", csrrc  , I, 
           volatile word_t t = CSRs(imm); CSRs(imm) = t & ~src1; R(rd) = t);
   
-  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc); 
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, s->dnpc = ecall_func(s->pc); 
           IFDEF(CONFIG_ETRACE,etrace_log();));
   INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , I, MRET);
 

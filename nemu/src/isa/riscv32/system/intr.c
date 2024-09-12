@@ -25,9 +25,6 @@
 
 // ECALL
 word_t isa_raise_intr(word_t NO, vaddr_t epc) {
-    cpu.csr.mepc = epc;
-    cpu.csr.mcause = NO;
-
     IFDEF(CONFIG_ETRACE,
           Log("[isa_raise_intr before] mie: %u, mpie: %u",
                         mstatus_MIE, mstatus_MPIE);
@@ -42,7 +39,11 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     // csr.mstatus.mpp = cpu.priv; 保存处理器模式 MPP bit[9:8] 0b11 M mode  
     //cpu.csr.mstatus |= ((1 << 11) + (1 << 12));
     cpu.csr.mstatus &= ~(3 << 11);
-    cpu.csr.mstatus |= (cpu.priv & 3) << 11;
+    cpu.csr.mstatus |= cpu.priv << 11;
+
+    cpu.priv = PRIV_MODE_M;
+    cpu.csr.mepc = epc;
+    cpu.csr.mcause = NO;
 
     IFDEF(CONFIG_ETRACE,
           Log("[isa_raise_intr after] mie: %u, mpie: %u",

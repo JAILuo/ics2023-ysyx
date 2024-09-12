@@ -15,11 +15,10 @@ void switch_boot_pcb() {
 void hello_fun(void *arg) {
   int j = 1;
   while (1) {
-    if (j++ > 100) {
+    if (j++ > 50) {
         j = 0;
         Log("Hello World from Nanos-lite with arg '%s' for the %dth time!", (const char *)arg, j);
     }
-    j ++;
     yield();
   }
 }
@@ -27,7 +26,7 @@ void hello_fun(void *arg) {
 static char *argv_pal[] = {"/bin/pal", "--skip", NULL};
 //static char *argv_pal[] = {"/bin/pal", NULL};
 static char *envp[] = {NULL};
-static char *argv[] = {NULL};
+//static char *argv[] = {NULL};
 //static char *argv_exec_test[] = {"/bin/exec-test",  NULL};
 //static char *argv_menu[] = {"/bin/menu",  NULL};
 //static char *argv_nterm[] = {"/bin/nterm",  NULL};
@@ -46,8 +45,8 @@ void init_proc() {
   //printf("in init_proc pcb0->cp->mepc:%p\n",pcb[0].cp->mepc);
   //naive_uload(&pcb[0], "/bin/dummy");
 
-  //context_kload(&pcb[0], hello_fun, "A");
-  context_uload(&pcb[0], "/bin/hello", argv, envp);
+  context_kload(&pcb[0], hello_fun, "A");
+  //context_uload(&pcb[0], "/bin/hello", argv, envp);
   context_uload(&pcb[1], "/bin/pal", argv_pal, envp);
   //context_uload(&pcb[2], "/bin/bird", argv, envp);
   //context_uload(&pcb[3], "/bin/nslider", argv, envp);

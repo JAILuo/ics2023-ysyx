@@ -17,22 +17,21 @@ Context* __am_irq_handle(Context *c) {
         Event ev = {0};
         // Whether to add 4 to the exception return address
         switch (c->mcause) {
-            case 0x0:
-            case 0x1:
-            case 0xb:
-            	if (c->GPR1 == -1) { // YIELD
-                    ev.event = EVENT_YIELD; c->mepc += 4;
-                } else if (c->GPR1 >= 0 && c->GPR1 <= 19) { 
-                    // NR_SYSCALL:20
-                	ev.event = EVENT_SYSCALL; c->mepc += 4;
-            	} else {
-                	assert("unknown exception event\n");
-            	}
-            break;
-            case 0x80000007: 
-                // S-mode is not supported yet TODO
-                ev.event = EVENT_IRQ_TIMER;
-            break;
+        case EXCP_U_CALL:
+        case EXCP_M_CALL:
+            if (c->GPR1 == -1) { // YIELD
+                ev.event = EVENT_YIELD; c->mepc += 4;
+            } else if (c->GPR1 >= 0 && c->GPR1 <= 19) { 
+                // NR_SYSCALL:20
+                ev.event = EVENT_SYSCALL; c->mepc += 4;
+            } else {
+                assert("unknown exception event\n");
+            }
+        break;
+        case 0x80000007: 
+            // S-mode is not supported yet TODO
+            ev.event = EVENT_IRQ_TIMER;
+        break;
         default: ev.event = EVENT_ERROR; break;
     }
 
@@ -77,13 +76,18 @@ void yield() {
   asm volatile("li a5, -1; ecall");
 #else
   asm volatile("li a7, -1; ecall");
-  // pass the difftest
 #endif
 }
 
 bool ienabled() {
-  return false;
+    uintptr_t mstatus_;
+    asm volatile("csrr %0, satp" : "=r"(mstatus_));
+    return mstatus_ << 3;
 }
 
 void iset(bool enable) {
+    uintptr_t mstatus_;
+    asm volatile("csrr %0, satp" : "=r"(mstatus_));
+    mstatus_ |= (enable << 3);
+    asm volatile("csrw mstatus, %0" : : "r"(mstatus_));
 }
