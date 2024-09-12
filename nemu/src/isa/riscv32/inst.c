@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "common.h"
+#include "include/isa-def.h"
 #include "local-include/reg.h"
 #include "macro.h"
 #include <stdbool.h>
@@ -33,21 +34,30 @@ enum {
   TYPE_N, // none
 };
 
+// static word_t ecall_func(word_t epc) {
+//     return isa_raise_intr(cpu.priv, epc);
+// } 
+
+//TODO: need to support complete mcause
+//      Now just set PRIV_MODE to mcause, 
+//      and even the position of PRIV_MODE is wrong(should be )
+
 #define ECALL(dnpc) {\
-    dnpc = (isa_raise_intr(11, s->pc)); \
+    dnpc = (isa_raise_intr(cpu.priv, s->pc)); \
 }
 
 #define MRET { \
     cpu.csr.mstatus &= ~(1 << 3); \
     cpu.csr.mstatus |= ((cpu.csr.mstatus&(1 << 7)) >> 4); \
     cpu.csr.mstatus |= (1 << 7); \
-    cpu.csr.mstatus &= ~((1 << 11)+(1 << 12)); \
+    cpu.priv = (cpu.csr.mstatus >> 11) & 3; \
     s->dnpc = cpu.csr.mepc; \
 }
 //将mstatus.MIE位置为0
 //将mstatus.MPIE还原到mstatus.MIE中
 //将mstatus.MPIE位置为1
-//将处理器模式摄制成之前保存到MPP字段的处理器模式
+//将处理器模式摄制成之前保存到MPP字段的处理器模式 mpp
+    //cpu.csr.mstatus &= ~((1 << 11)+(1 << 12)); 
 
 /** 
  * you may forget add sext for your instruction

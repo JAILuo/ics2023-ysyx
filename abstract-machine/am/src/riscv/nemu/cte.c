@@ -12,11 +12,14 @@ Context* __am_irq_handle(Context *c) {
     __am_get_cur_as(c);
 
     if (user_handler) {
-    //printf("in __am_irq_handle,c:%p c->sp:%p\n", c, c->gpr[2]);
+        //printf("in __am_irq_handle,c:%p c->sp:%p\n", c, c->gpr[2]);
+        //printf("mcause: %x\n", c->mcause);
         Event ev = {0};
         // Whether to add 4 to the exception return address
         switch (c->mcause) {
-          	case 0xb:
+            case 0x0:
+            case 0x1:
+            case 0xb:
             	if (c->GPR1 == -1) { // YIELD
                     ev.event = EVENT_YIELD; c->mepc += 4;
                 } else if (c->GPR1 >= 0 && c->GPR1 <= 19) { 
@@ -27,7 +30,7 @@ Context* __am_irq_handle(Context *c) {
             	}
             break;
             case 0x80000007: 
-            // S-mode is not supported yet TODO
+                // S-mode is not supported yet TODO
                 ev.event = EVENT_IRQ_TIMER;
             break;
         default: ev.event = EVENT_ERROR; break;

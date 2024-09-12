@@ -18,6 +18,11 @@
 
 #include <common.h>
 
+#define PRIV_MODE_U 0
+#define PRIV_MODE_S 1
+#define PRIV_MODE_M 3
+
+
 typedef struct {
     word_t mcause;
     word_t mstatus;
@@ -32,6 +37,7 @@ typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
   vaddr_t pc;
   riscv_CPU_csr csr;
+  int priv;
   bool INTR;
 } MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state);
 

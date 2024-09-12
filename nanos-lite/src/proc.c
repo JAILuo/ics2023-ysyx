@@ -49,29 +49,30 @@ void init_proc() {
   //context_kload(&pcb[0], hello_fun, "A");
   context_uload(&pcb[0], "/bin/hello", argv, envp);
   context_uload(&pcb[1], "/bin/pal", argv_pal, envp);
-  context_uload(&pcb[2], "/bin/bird", argv, envp);
-  context_uload(&pcb[3], "/bin/nslider", argv, envp);
+  //context_uload(&pcb[2], "/bin/bird", argv, envp);
+  //context_uload(&pcb[3], "/bin/nslider", argv, envp);
   switch_boot_pcb();
 
 }
 
 int fg_pcb = 1;
-static int schedule_count = 0;
-Context* schedule(Context *prev) {
-    current->cp = prev;
-    schedule_count++;
+// //TODO: still bug! extremely bad, overflow
+// static int schedule_count = 0;
+// Context* schedule(Context *prev) {
+//     current->cp = prev;
+//     schedule_count++;
+// 
+//     if (schedule_count % 20 == 0) {
+//         current = &pcb[0];
+//         //current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
+//     } else {
+//         current = &pcb[fg_pcb];
+//     }
+// 
+//     return current->cp;
+// }
 
-    if (schedule_count % 20 == 0) {
-        current = &pcb[0];
-        //current = (current == &pcb[0] ? &pcb[1] : &pcb[0]);
-    } else {
-        current = &pcb[fg_pcb];
-    }
 
-    return current->cp;
-}
-
-/*
 Context* schedule(Context *prev) {
     //current = &pcb[0]; // for pa4.2 test
 
@@ -82,4 +83,3 @@ Context* schedule(Context *prev) {
 
     return current->cp;
 }
-*/
