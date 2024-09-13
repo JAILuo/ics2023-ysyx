@@ -46,7 +46,19 @@ typedef struct {
     word_t mepc;
     word_t mtvec;
     word_t mscratch;
+    word_t mtval;
+    word_t mcycle;
+    word_t medeleg;
+    word_t mideleg;
+    word_t mip;
+    word_t m_mie;
+
     word_t satp;
+    word_t sepc;
+    word_t stvec;
+    word_t sstatus;
+    word_t scause;
+    word_t sscratch;
     // add more...
 } riscv_CPU_csr;
 
@@ -56,6 +68,10 @@ typedef struct {
   riscv_CPU_csr csr;
   int priv;
   bool INTR;
+  
+  //RV32A
+  bool lr_valid;
+  word_t reserved_addr;
 } MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state);
 
 // decode
