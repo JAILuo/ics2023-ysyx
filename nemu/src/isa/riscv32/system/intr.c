@@ -13,19 +13,19 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include "common.h"
 #include "isa-def.h"
 #include <isa.h>
 #include <../local-include/reg.h>
+#include <../local-include/csr.h>
 #include <stdbool.h>
 
 #define IRQ_TIMER 0x80000007  // for riscv32
 
 // ECALL
+void etrace_log(CsrMstatus_t mstatus_tmp, CsrMcause_t mcause_tmp);
 word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     CsrMstatus_t mstatus_tmp = {.packed = CSRs(CSR_MSTATUS)};
-    IFDEF(CONFIG_ETRACE,
-          Log("[isa_raise_intr before] mie: %u, mpie: %u", mstatus_tmp.mie, mstatus_tmp.mpie);
-         );
     
     CSRs(CSR_MEPC) = epc;
     CSRs(CSR_MCAUSE) = NO;
@@ -42,14 +42,33 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     // 设置处理器模式为 M 模式
     cpu.priv = PRIV_MODE_M;
 
-
     // TODO: add more mcause, mepc trace!!
-    IFDEF(CONFIG_ETRACE,
-          Log("[isa_raise_intr after] mie: %u, mpie: %u", mstatus_tmp.mie, mstatus_tmp.mpie);
-         );
-
+#ifdef CONFIG_ETRACE
+    CsrMcause_t mcause_tmp = {.packed = NO};
+    etrace_log(mstatus_tmp, mcause_tmp);
+#endif
     return cpu.csr.mtvec;
 }
+
+void etrace_log(CsrMstatus_t mstatus_tmp, CsrMcause_t mcause_tmp) {
+    if (mcause_tmp.intr) {
+        // TODO: need to add X-Macre to show the exception name.
+        printf("[etrace begin]\n"
+               "    [interrupt]\n"
+               "    mstatus.mie: %u, mstatus.mpie: %u\n"
+               "    mepc: " FMT_WORD ", mcause.code: " FMT_WORD "\n"
+               "[etrace_log end]\n",
+            mstatus_tmp.mie, mstatus_tmp.mpie, cpu.csr.mepc, mcause_tmp.code);
+    } else {
+        printf("[etrace begin]\n"
+               "    [exception]\n"
+               "    mstatus.mie: %u, mstatus.mpie: %u\n"
+               "    mepc: " FMT_WORD ", mcause.code: " FMT_WORD "\n"
+               "[etrace_log end]\n",
+            mstatus_tmp.mie, mstatus_tmp.mpie, cpu.csr.mepc, mcause_tmp.code);
+    }
+}
+// TODO: Some apps triggered access exceptions?
 
 word_t isa_query_intr() {
     const CsrMstatus_t mstatus_tmp = {.packed = CSRs(CSR_MSTATUS)};

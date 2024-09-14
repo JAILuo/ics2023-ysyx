@@ -19,6 +19,7 @@
 #include "include/isa-def.h"
 #include "isa.h"
 #include "local-include/reg.h"
+#include "local-include/csr.h"
 #include "macro.h"
 #include <stdbool.h>
 #include <utils.h>
@@ -61,17 +62,6 @@ static word_t mret_func(void) {
 //TODO: need to support complete mcause
 //      Now just set PRIV_MODE to mcause, 
 //      and even the position of PRIV_MODE is wrong(should be )
-
-// #define ECALL(dnpc) {
-//     dnpc = (isa_raise_intr(cpu.priv, s->pc)); 
-// }
-
-// #define MRET {
-//     cpu.csr.mstatus |= ((cpu.csr.mstatus&(1 << 7)) >> 4);
-//     cpu.csr.mstatus |= (1 << 7);
-//     cpu.priv = (cpu.csr.mstatus >> 11) & 3;
-//     s->dnpc = cpu.csr.mepc;
-// }
 
 /** 
  * you may forget add sext for your instruction
@@ -233,10 +223,11 @@ static int decode_exec(Decode *s) {
           volatile word_t t = CSRs(imm); CSRs(imm) = t & ~(ZEXT(imm, 32)); R(rd) = t);
 
   
-  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, s->dnpc = ecall_func(s->pc); 
-          IFDEF(CONFIG_ETRACE,etrace_log();));
-  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , R, s->dnpc = mret_func(););
-  INSTPAT("0001000 00010 00000 000 00000 11100 11", sret   , R);// TODO
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall     , I,
+          s->dnpc = ecall_func(s->pc););
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret      , R,
+          s->dnpc = mret_func(););
+  INSTPAT("0001000 00010 00000 000 00000 11100 11", sret      , R);// TODO
   INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R);
   INSTPAT("0000000 00000 00000 001 00000 00011 11", fence.i   , I);
   INSTPAT("0001001 ????? ????? 000 00000 11100 11", sfence.vma, R);

@@ -23,21 +23,21 @@
 #define PRIV_MODE_M 3
 
 enum {
-  EXCP_INST_UNALIGNED = 0,
-  EXCP_INST_ACCESS = 1,
-  EXCP_INST = 2,
-  EXCP_BREAK = 3,
-  EXCP_READ_UNALIGNED = 4,
-  EXCP_READ_ACCESS = 5,
-  EXCP_STORE_UNALIGNED = 6,
-  EXCP_STORE_ACCESS = 7,
-  EXCP_U_CALL = 8,
-  EXCP_S_CALL = 9,
-  EXCP_M_CALL = 11,
-  EXCP_INST_PAGE = 12,
-  EXCP_READ_PAGE = 13,
-  EXCP_STORE_PAGE = 14,
-  // EXCP_15 :AMO pagefault
+    EXCP_INST_UNALIGNED = 0,
+    EXCP_INST_ACCESS = 1,
+    EXCP_INST = 2,
+    EXCP_BREAK = 3,
+    EXCP_READ_UNALIGNED = 4,
+    EXCP_READ_ACCESS = 5,
+    EXCP_STORE_UNALIGNED = 6,
+    EXCP_STORE_ACCESS = 7,
+    EXCP_U_CALL = 8,
+    EXCP_S_CALL = 9,
+    EXCP_M_CALL = 11,
+    EXCP_INST_PAGE = 12,
+    EXCP_READ_PAGE = 13,
+    EXCP_STORE_PAGE = 14,
+    // EXCP_15 :AMO pagefault
 };
 
 typedef struct {
@@ -63,36 +63,6 @@ typedef struct {
     // add more...
 } riscv_CPU_csr;
 
-typedef union CsrMstatus_ {
-  struct {
-    word_t reserved_0 : 1;
-    word_t sie : 1;
-    word_t reserved_1 : 1;
-    word_t mie : 1;
-    word_t reserved_2 : 1;
-    word_t spie : 1;
-    word_t reserved_3 : 1;
-    word_t mpie : 1;
-    word_t spp : 1;
-    word_t reserved_4 : 2;
-    word_t mpp : 2;
-    word_t fs : 2;
-    word_t xs : 2;
-    word_t mprv : 1;
-    word_t sum : 1;
-    word_t mxr : 1;
-    word_t tvm : 1;
-    word_t tw : 1;
-    word_t tsr : 1;
-#ifdef CONFIG_RV64
-    word_t reserved_5 : 40; // XLEN - 24
-#else
-    word_t reserved_5 : 8; // XLEN - 24
-#endif
-    word_t sd : 1;
-  };
-  word_t packed;
-} CsrMstatus_t;
 
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];

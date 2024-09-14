@@ -272,13 +272,3 @@ void ftrace_func_ret(vaddr_t pc) {
 }
 
 
-// ----------- dtrace -----------
-void etrace_log() {
-    log_write("[etrace] " "exception NO: %d\n"
-           "epc: %x\n", cpu.csr.mcause, cpu.csr.mepc);
-    // TODO: add more bits
-    // eg. whether to switch interrupt
-}
-
-
-

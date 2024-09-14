@@ -20,52 +20,52 @@ struct Context {
 #define PRIV_MODE_M 3
 
 enum {
-  EXCP_INST_UNALIGNED = 0,
-  EXCP_INST_ACCESS = 1,
-  EXCP_INST = 2,
-  EXCP_BREAK = 3,
-  EXCP_READ_UNALIGNED = 4,
-  EXCP_READ_ACCESS = 5,
-  EXCP_STORE_UNALIGNED = 6,
-  EXCP_STORE_ACCESS = 7,
-  EXCP_U_CALL = 8,
-  EXCP_S_CALL = 9,
-  EXCP_M_CALL = 11,
-  EXCP_INST_PAGE = 12,
-  EXCP_READ_PAGE = 13,
-  EXCP_STORE_PAGE = 14,
-  // EXCP_15 :AMO pagefault
+    EXCP_INST_UNALIGNED = 0,
+    EXCP_INST_ACCESS = 1,
+    EXCP_INST = 2,
+    EXCP_BREAK = 3,
+    EXCP_READ_UNALIGNED = 4,
+    EXCP_READ_ACCESS = 5,
+    EXCP_STORE_UNALIGNED = 6,
+    EXCP_STORE_ACCESS = 7,
+    EXCP_U_CALL = 8,
+    EXCP_S_CALL = 9,
+    EXCP_M_CALL = 11,
+    EXCP_INST_PAGE = 12,
+    EXCP_READ_PAGE = 13,
+    EXCP_STORE_PAGE = 14,
+    // EXCP_15 :AMO pagefault
 };
 
 typedef union CsrMstatus_ {
-  struct {
-    uintptr_t reserved_0 : 1;
-    uintptr_t sie : 1;
-    uintptr_t reserved_1 : 1;
-    uintptr_t mie : 1;
-    uintptr_t reserved_2 : 1;
-    uintptr_t spie : 1;
-    uintptr_t reserved_3 : 1;
-    uintptr_t mpie : 1;
-    uintptr_t spp : 1;
-    uintptr_t reserved_4 : 2;
-    uintptr_t mpp : 2;
-    uintptr_t fs : 2;
-    uintptr_t xs : 2;
-    uintptr_t mprv : 1;
-    uintptr_t sum : 1;
-    uintptr_t mxr : 1;
-    uintptr_t tvm : 1;
-    uintptr_t tw : 1;
-    uintptr_t tsr : 1;
+    struct {
+        uintptr_t reserved_0 : 1;
+        uintptr_t sie : 1;
+        uintptr_t reserved_1 : 1;
+        uintptr_t mie : 1;
+        uintptr_t reserved_2 : 1;
+        uintptr_t spie : 1;
+        uintptr_t reserved_3 : 1;
+        uintptr_t mpie : 1;
+        uintptr_t spp : 1;
+        uintptr_t reserved_4 : 2;
+        uintptr_t mpp : 2;
+        uintptr_t fs : 2;
+        uintptr_t xs : 2;
+        uintptr_t mprv : 1;
+        uintptr_t sum : 1;
+        uintptr_t mxr : 1;
+        uintptr_t tvm : 1;
+        uintptr_t tw : 1;
+        uintptr_t tsr : 1;
 #ifdef __ISA_RISCV64__
-    uintptr_t reserved_5 : 40; // XLEN - 24
+        uintptr_t reserved_5 : 40; // XLEN - 24
 #else
-    uintptr_t reserved_5 : 8; // XLEN - 24
+        uintptr_t reserved_5 : 8; // XLEN - 24
 #endif
-    uintptr_t sd : 1;
-  };
-  uintptr_t packed;
+        uintptr_t sd : 1;
+    };
+    uintptr_t packed;
 } CsrMstatus_t;
 
 #ifdef __riscv_e
