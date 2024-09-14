@@ -50,6 +50,7 @@ typedef struct {
     word_t mcycle;
     word_t medeleg;
     word_t mideleg;
+    word_t minstret;
     word_t mip;
     word_t m_mie;
 

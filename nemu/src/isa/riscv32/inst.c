@@ -44,6 +44,18 @@ static word_t ecall_func(word_t epc) {
     return isa_raise_intr(excp_code, epc);
 } 
 
+static word_t mret_func(void) {
+    // 将mstatus.MPIE还原到mstatus.MIE中
+    cpu.csr.mstatus |= ((cpu.csr.mstatus&(1 << 7)) >> 4);
+    // 将mstatus.MPIE位置为1
+    cpu.csr.mstatus |= (1 << 7);
+    // 将处理器模式摄制成之前保存到MPP字段的处理器模式 mpp
+    printf("cpu.priv before mret: %d\n", cpu.priv);
+    cpu.priv = (cpu.csr.mstatus >> 11) & 3;
+    printf("cpu.priv after mret: %d\n", cpu.priv);
+    return cpu.csr.mepc;
+}
+
 //TODO: need to support complete mcause
 //      Now just set PRIV_MODE to mcause, 
 //      and even the position of PRIV_MODE is wrong(should be )
@@ -52,18 +64,12 @@ static word_t ecall_func(word_t epc) {
 //     dnpc = (isa_raise_intr(cpu.priv, s->pc)); 
 // }
 
-#define MRET { \
-    cpu.csr.mstatus &= ~(1 << 3); \
-    cpu.csr.mstatus |= ((cpu.csr.mstatus&(1 << 7)) >> 4); \
-    cpu.csr.mstatus |= (1 << 7); \
-    cpu.priv = (cpu.csr.mstatus >> 11) & 3; \
-    s->dnpc = cpu.csr.mepc; \
-}
-//将mstatus.MIE位置为0
-//将mstatus.MPIE还原到mstatus.MIE中
-//将mstatus.MPIE位置为1
-//将处理器模式摄制成之前保存到MPP字段的处理器模式 mpp
-    //cpu.csr.mstatus &= ~((1 << 11)+(1 << 12)); 
+// #define MRET {
+//     cpu.csr.mstatus |= ((cpu.csr.mstatus&(1 << 7)) >> 4);
+//     cpu.csr.mstatus |= (1 << 7);
+//     cpu.priv = (cpu.csr.mstatus >> 11) & 3;
+//     s->dnpc = cpu.csr.mepc;
+// }
 
 /** 
  * you may forget add sext for your instruction
@@ -211,17 +217,27 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   
   /* CSR */
-  // TODO: zicsr add.
   INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I,
           volatile word_t t = CSRs(imm); CSRs(imm) = src1; R(rd) = t);
+  INSTPAT("??????? ????? ????? 101 ????? 11100 11", csrrwi , I,
+          R(rd) = CSRs(imm); CSRs(imm) = ZEXT(imm, 32););
   INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, 
           volatile word_t t = CSRs(imm); CSRs(imm) = t | src1; R(rd) = t);
+  INSTPAT("??????? ????? ????? 110 ????? 11100 11", csrrsi , I, 
+          volatile word_t t = CSRs(imm); CSRs(imm) = t | ZEXT(imm, 32); R(rd) = t;);
   INSTPAT("??????? ????? ????? 011 ????? 11100 11", csrrc  , I, 
           volatile word_t t = CSRs(imm); CSRs(imm) = t & ~src1; R(rd) = t);
+  INSTPAT("??????? ????? ????? 111 ????? 11100 11", csrrci , I, 
+          volatile word_t t = CSRs(imm); CSRs(imm) = t & ~(ZEXT(imm, 32)); R(rd) = t);
+
   
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, s->dnpc = ecall_func(s->pc); 
           IFDEF(CONFIG_ETRACE,etrace_log();));
-  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , I, MRET);
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , R, s->dnpc = mret_func(););
+  INSTPAT("0001000 00010 00000 000 00000 11100 11", sret   , R);// TODO
+  INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R);
+  INSTPAT("0000000 00000 00000 001 00000 00011 11", fence.i   , I);
+  INSTPAT("0001001 ????? ????? 000 00000 11100 11", sfence.vma, R);
 
   /* M" Extension for Integer Multiplication and Division, Version 2.0 */
   /* RV32M Multiply Extension */
@@ -278,10 +294,6 @@ static int decode_exec(Decode *s) {
           }
          );
 
-  R(rd) = Mr(src1, 4);
-  Mw(R(rd), 4, R(rd) + src2);
-
- 
 //   INSTPAT("00001?? ????? ????? 010 ????? 01011 11", amoswap.w, R,
   INSTPAT("00000?? ????? ????? 010 ????? 01011 11", amoadd.w , R,
           word_t t = Mr(src1, 4); Mw(src1, 4, t + src2); R(rd) = SEXT(t, 32););
