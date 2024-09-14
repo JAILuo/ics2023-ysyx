@@ -37,6 +37,37 @@ enum {
   // EXCP_15 :AMO pagefault
 };
 
+typedef union CsrMstatus_ {
+  struct {
+    uintptr_t reserved_0 : 1;
+    uintptr_t sie : 1;
+    uintptr_t reserved_1 : 1;
+    uintptr_t mie : 1;
+    uintptr_t reserved_2 : 1;
+    uintptr_t spie : 1;
+    uintptr_t reserved_3 : 1;
+    uintptr_t mpie : 1;
+    uintptr_t spp : 1;
+    uintptr_t reserved_4 : 2;
+    uintptr_t mpp : 2;
+    uintptr_t fs : 2;
+    uintptr_t xs : 2;
+    uintptr_t mprv : 1;
+    uintptr_t sum : 1;
+    uintptr_t mxr : 1;
+    uintptr_t tvm : 1;
+    uintptr_t tw : 1;
+    uintptr_t tsr : 1;
+#ifdef __ISA_RISCV64__
+    uintptr_t reserved_5 : 40; // XLEN - 24
+#else
+    uintptr_t reserved_5 : 8; // XLEN - 24
+#endif
+    uintptr_t sd : 1;
+  };
+  uintptr_t packed;
+} CsrMstatus_t;
+
 #ifdef __riscv_e
 #define GPR1 gpr[15] // a5
 #else

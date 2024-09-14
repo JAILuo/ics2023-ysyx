@@ -13,8 +13,10 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include "isa-def.h"
 #include <isa.h>
 #include <memory/paddr.h>
+#include <stdbool.h>
 
 // this is not consistent with uint8_t
 // but it is ok since we do not access the array directly
@@ -34,8 +36,10 @@ static void restart() {
   cpu.gpr[0] = 0;
   
   /* initialize mstatus */
-  //cpu.csr.mstatus = 0xa00001800;
-  cpu.csr.mstatus = 0x00001800;
+  // MPP: bit[12:11]MPP: 3 
+  cpu.csr.mstatus = MUXDEF(CONFIG_RV64, 0xa00001800, 0x00001800);
+  cpu.priv = PRIV_MODE_M;
+  cpu.INTR = false;
 }
 
 void init_isa() {

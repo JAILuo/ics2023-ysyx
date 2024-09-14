@@ -13,47 +13,50 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include "isa-def.h"
 #include <isa.h>
 #include <../local-include/reg.h>
 #include <stdbool.h>
 
 #define IRQ_TIMER 0x80000007  // for riscv32
 
-// TODO: need to optimize...
-#define mstatus_MIE (((cpu.csr.mstatus) >> 3) & 0x1)
-#define mstatus_MPIE (((cpu.csr.mstatus) >> 7) & 0x1)
-
 // ECALL
 word_t isa_raise_intr(word_t NO, vaddr_t epc) {
+    CsrMstatus_t mstatus_tmp = {.packed = CSRs(CSR_MSTATUS)};
     IFDEF(CONFIG_ETRACE,
-          Log("[isa_raise_intr before] mie: %u, mpie: %u", mstatus_MIE, mstatus_MPIE);
+          Log("[isa_raise_intr before] mie: %u, mpie: %u", mstatus_tmp.mie, mstatus_tmp.mpie);
          );
+    
+    CSRs(CSR_MEPC) = epc;
+    CSRs(CSR_MCAUSE) = NO;
 
-    cpu.csr.mepc = epc;
-    cpu.csr.mcause = NO;
-    // csr.mstatus.mpie = 0 将mstatus.MPIE位置为0
-    cpu.csr.mstatus &= ~(1 << 7);
-    // csr.mstatus.mpie = csr.mstatus.mie; 把异常发生前的 MIE 字段 保存到 MPIE 字段 
-    cpu.csr.mstatus |= ((cpu.csr.mstatus & (1 << 3)) << 4);
-    // csr.mstatus.mie = 0; 关闭本地中断 MIE = 0
-    cpu.csr.mstatus &= ~(1 << 3);
-    // csr.mstatus.mpp = cpu.priv; 保存处理器模式 MPP bit[9:8] 0b11 M mode  
-    cpu.csr.mstatus &= ~(3 << 11);
-    cpu.csr.mstatus |= cpu.priv << 11;
-
+    // TODO: 把发生异常时的虚拟地址更新到mtval寄存器中
+    
+    // 把异常发生前的 MIE 字段 保存到 MPIE 字段 
+    mstatus_tmp.mpie = mstatus_tmp.mie;
+    // 关闭本地中断 MIE = 0
+    mstatus_tmp.mie = 0;
+    // 保存处理器模式 MPP bit[9:8] 0b11 M mode  
+    mstatus_tmp.mpp = cpu.priv;
+    CSRs(CSR_MSTATUS) = mstatus_tmp.packed;
+    // 设置处理器模式为 M 模式
     cpu.priv = PRIV_MODE_M;
 
+
+    // TODO: add more mcause, mepc trace!!
     IFDEF(CONFIG_ETRACE,
-          Log("[isa_raise_intr after] mie: %u, mpie: %u", mstatus_MIE, mstatus_MPIE);
+          Log("[isa_raise_intr after] mie: %u, mpie: %u", mstatus_tmp.mie, mstatus_tmp.mpie);
          );
 
     return cpu.csr.mtvec;
 }
 
 word_t isa_query_intr() {
+    const CsrMstatus_t mstatus_tmp = {.packed = CSRs(CSR_MSTATUS)};
     // MIE = 1, enable interrupt
-    if (cpu.INTR == true && mstatus_MIE != 0) {
+    if (cpu.INTR == true && mstatus_tmp.mie != 0) {
         cpu.INTR = false;
+        // TODO: real ISA need to what? when coming interrupt
         return IRQ_TIMER;
     }
     return INTR_EMPTY; // ((word_t) -1)

@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include "common.h"
 #include "include/isa-def.h"
+#include "isa.h"
 #include "local-include/reg.h"
 #include "macro.h"
 #include <stdbool.h>
@@ -45,14 +46,15 @@ static word_t ecall_func(word_t epc) {
 } 
 
 static word_t mret_func(void) {
+    CsrMstatus_t mstatus_tmp = {.packed = CSRs(CSR_MSTATUS)};
     // 将mstatus.MPIE还原到mstatus.MIE中
-    cpu.csr.mstatus |= ((cpu.csr.mstatus&(1 << 7)) >> 4);
+    mstatus_tmp.mie = mstatus_tmp.mpie;
     // 将mstatus.MPIE位置为1
-    cpu.csr.mstatus |= (1 << 7);
+    mstatus_tmp.mpie = 1;
     // 将处理器模式摄制成之前保存到MPP字段的处理器模式 mpp
-    printf("cpu.priv before mret: %d\n", cpu.priv);
-    cpu.priv = (cpu.csr.mstatus >> 11) & 3;
-    printf("cpu.priv after mret: %d\n", cpu.priv);
+    cpu.priv = mstatus_tmp.mpp;
+    CSRs(CSR_MSTATUS) = mstatus_tmp.packed;
+    
     return cpu.csr.mepc;
 }
 

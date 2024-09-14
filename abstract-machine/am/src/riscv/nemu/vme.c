@@ -145,10 +145,17 @@ Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
     void *stack_end = kstack.end;
     Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
     // just pass the difftest
-    //base->mstatus = 0x1800;
-
+    //base->mstatus = 0x1800; // MPP bit[12:11] 0b11 = 3
+    const CsrMstatus_t mstatus_tmp = {
+        .mpie = 1,
+        .mie = 0,
+        .sum = 1, // read note and manual
+        .mxr = 1, // about S-mode, OS will do this, design processor core don't care?
+        .mpp = PRIV_MODE_U,
+    };
     // notice the MPIE will be restored to the MIE in nemu
-    base->mstatus |= (1 << 7);
+    //base->mstatus |= (1 << 7); MPIE = 1;
+    base->mstatus = mstatus_tmp.packed;
     base->pdir = as->ptr;
     base->np = PRIV_MODE_U;
     base->gpr[2] = (uintptr_t)kstack.end;

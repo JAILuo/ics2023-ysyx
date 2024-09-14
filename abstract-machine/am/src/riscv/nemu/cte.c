@@ -60,9 +60,15 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
     Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
     // just pass the difftest
     //base->mstatus = 0x1800;
+    const CsrMstatus_t mstatus_tmp = {
+        .mpie = 1,
+        .mie = 0,
+        .mpp = PRIV_MODE_M,
+    };
 
     // notice the MPIE will be restored to the MIE in nemu
-    base->mstatus |= (1 << 7);
+    //base->mstatus |= (1 << 7); MPIE = 1;
+    base->mstatus = mstatus_tmp.packed;
     base->pdir = NULL;
     base->np = PRIV_MODE_M;
     base->mepc = (uintptr_t)entry;
@@ -80,14 +86,14 @@ void yield() {
 }
 
 bool ienabled() {
-    uintptr_t mstatus_;
-    asm volatile("csrr %0, satp" : "=r"(mstatus_));
-    return mstatus_ << 3;
+    CsrMstatus_t mstatus_tmp;
+    asm volatile("csrr %0, satp" : "=r"(mstatus_tmp.packed));
+    return mstatus_tmp.mie;
 }
 
 void iset(bool enable) {
-    uintptr_t mstatus_;
-    asm volatile("csrr %0, satp" : "=r"(mstatus_));
-    mstatus_ |= (enable << 3);
-    asm volatile("csrw mstatus, %0" : : "r"(mstatus_));
+    CsrMstatus_t mstatus_tmp;
+    asm volatile("csrr %0, satp" : "=r"(mstatus_tmp));
+    mstatus_tmp.mie = enable;
+    asm volatile("csrw mstatus, %0" : : "r"(mstatus_tmp));
 }
