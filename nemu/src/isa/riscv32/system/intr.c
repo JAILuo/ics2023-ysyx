@@ -20,37 +20,7 @@
 #include <../local-include/csr.h>
 #include <stdbool.h>
 
-#define IRQ_TIMER 0x80000007  // for riscv32
-
-// ECALL
-void etrace_log(CsrMstatus_t mstatus_tmp, CsrMcause_t mcause_tmp);
-word_t isa_raise_intr(word_t NO, vaddr_t epc) {
-    CsrMstatus_t mstatus_tmp = {.packed = CSRs(CSR_MSTATUS)};
-    
-    CSRs(CSR_MEPC) = epc;
-    CSRs(CSR_MCAUSE) = NO;
-
-    // TODO: 把发生异常时的虚拟地址更新到mtval寄存器中
-    
-    // 把异常发生前的 MIE 字段 保存到 MPIE 字段 
-    mstatus_tmp.mpie = mstatus_tmp.mie;
-    // 关闭本地中断 MIE = 0
-    mstatus_tmp.mie = 0;
-    // 保存处理器模式 MPP bit[9:8] 0b11 M mode  
-    mstatus_tmp.mpp = cpu.priv;
-    CSRs(CSR_MSTATUS) = mstatus_tmp.packed;
-    // 设置处理器模式为 M 模式
-    cpu.priv = PRIV_MODE_M;
-
-    // TODO: add more mcause, mepc trace!!
-#ifdef CONFIG_ETRACE
-    CsrMcause_t mcause_tmp = {.packed = NO};
-    etrace_log(mstatus_tmp, mcause_tmp);
-#endif
-    return cpu.csr.mtvec;
-}
-
-void etrace_log(CsrMstatus_t mstatus_tmp, CsrMcause_t mcause_tmp) {
+void etrace_log(mstatus_t mstatus_tmp, mcause_t mcause_tmp) {
     if (mcause_tmp.intr) {
         // TODO: need to add X-Macre to show the exception name.
         printf("[etrace begin]\n"
@@ -68,15 +38,41 @@ void etrace_log(CsrMstatus_t mstatus_tmp, CsrMcause_t mcause_tmp) {
             mstatus_tmp.mie, mstatus_tmp.mpie, cpu.csr.mepc, mcause_tmp.code);
     }
 }
-// TODO: Some apps triggered access exceptions?
+// TODO: Some apps triggered access memory exceptions? 
+
+// ECALL
+word_t isa_raise_intr(word_t NO, vaddr_t epc) {
+    mstatus_t mstatus_tmp = {.value = CSRs(CSR_MSTATUS)};
+    
+    CSRs(CSR_MEPC) = epc;
+    CSRs(CSR_MCAUSE) = NO;
+
+    // TODO: 把发生异常时的虚拟地址更新到mtval寄存器中
+    
+    // 把异常发生前的 MIE 字段 保存到 MPIE 字段 
+    mstatus_tmp.mpie = mstatus_tmp.mie;
+    // 关闭本地中断 MIE = 0
+    mstatus_tmp.mie = 0;
+    // 保存处理器模式 MPP bit[9:8] 0b11 M mode  
+    mstatus_tmp.mpp = cpu.priv;
+    CSRs(CSR_MSTATUS) = mstatus_tmp.value;
+    // 设置处理器模式为 M 模式
+    cpu.priv = PRIV_MODE_M;
+
+    // TODO: add more mcause, mepc trace!!
+#ifdef CONFIG_ETRACE
+    mcause_t mcause_tmp = {.value = NO};
+    etrace_log(mstatus_tmp, mcause_tmp);
+#endif
+    return cpu.csr.mtvec;
+}
 
 word_t isa_query_intr() {
-    const CsrMstatus_t mstatus_tmp = {.packed = CSRs(CSR_MSTATUS)};
-    // MIE = 1, enable interrupt
+    const mstatus_t mstatus_tmp = {.value = CSRs(CSR_MSTATUS)};
     if (cpu.INTR == true && mstatus_tmp.mie != 0) {
         cpu.INTR = false;
-        // TODO: real ISA need to what? when coming interrupt
-        return IRQ_TIMER;
+        mcause_t mcause_tmp = {.intr = true, .code = INTR_M_TIMR};
+        return mcause_tmp.value;
     }
     return INTR_EMPTY; // ((word_t) -1)
 }

@@ -1,5 +1,5 @@
+#include "arch/riscv.h"
 #include <am.h>
-#include <riscv/riscv.h>
 #include <klib.h>
 #include <stdint.h>
 
@@ -11,29 +11,36 @@ void __am_switch(Context *c);
 Context* __am_irq_handle(Context *c) {
     __am_get_cur_as(c);
 
+    mcause_t mcause = {.value = c->mcause};
+
     if (user_handler) {
         //printf("in __am_irq_handle,c:%p c->sp:%p\n", c, c->gpr[2]);
         //printf("mcause: %x\n", c->mcause);
         Event ev = {0};
-        // Whether to add 4 to the exception return address
-        switch (c->mcause) {
-        case EXCP_U_CALL:
-        case EXCP_M_CALL:
-            if (c->GPR1 == -1) { // YIELD
-                ev.event = EVENT_YIELD; c->mepc += 4;
-            } else if (c->GPR1 >= 0 && c->GPR1 <= 19) { 
-                // NR_SYSCALL:20
-                ev.event = EVENT_SYSCALL; c->mepc += 4;
-            } else {
-                assert("unknown exception event\n");
+        if (mcause.intr) { // interrupt
+            switch (mcause.code) {
+            case INTR_M_TIMR:
+                ev.event = EVENT_IRQ_TIMER; break;
+            default: ev.event = EVENT_ERROR; break;
             }
-        break;
-        case 0x80000007: 
-            // S-mode is not supported yet TODO
-            ev.event = EVENT_IRQ_TIMER;
-        break;
-        default: ev.event = EVENT_ERROR; break;
-    }
+        } else { // exception
+            switch (mcause.code) {
+            case EXCP_U_CALL:
+            case EXCP_M_CALL:
+                if (c->GPR1 == -1) { // YIELD
+                    ev.event = EVENT_YIELD;
+                } else if (c->GPR1 >= 0 && c->GPR1 <= 19) { 
+                    // NR_SYSCALL:20
+                    ev.event = EVENT_SYSCALL;
+                } else {
+                    assert("unknown exception event\n");
+                }
+            break;
+            default: ev.event = EVENT_ERROR; break;
+            }
+            // Add 4 to the return address of the synchronization exception
+            c->mepc += 4;
+        }
 
     c = user_handler(ev, c);
     assert(c != NULL);
@@ -60,7 +67,7 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
     Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
     // just pass the difftest
     //base->mstatus = 0x1800;
-    const CsrMstatus_t mstatus_tmp = {
+    const mstatus_t mstatus_tmp = {
         .mpie = 1,
         .mie = 0,
         .mpp = PRIV_MODE_M,
@@ -68,7 +75,7 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
 
     // notice the MPIE will be restored to the MIE in nemu
     //base->mstatus |= (1 << 7); MPIE = 1;
-    base->mstatus = mstatus_tmp.packed;
+    base->mstatus = mstatus_tmp.value;
     base->pdir = NULL;
     base->np = PRIV_MODE_M;
     base->mepc = (uintptr_t)entry;
@@ -86,13 +93,13 @@ void yield() {
 }
 
 bool ienabled() {
-    CsrMstatus_t mstatus_tmp;
-    asm volatile("csrr %0, satp" : "=r"(mstatus_tmp.packed));
+    mstatus_t mstatus_tmp;
+    asm volatile("csrr %0, satp" : "=r"(mstatus_tmp.value));
     return mstatus_tmp.mie;
 }
 
 void iset(bool enable) {
-    CsrMstatus_t mstatus_tmp;
+    mstatus_t mstatus_tmp;
     asm volatile("csrr %0, satp" : "=r"(mstatus_tmp));
     mstatus_tmp.mie = enable;
     asm volatile("csrw mstatus, %0" : : "r"(mstatus_tmp));

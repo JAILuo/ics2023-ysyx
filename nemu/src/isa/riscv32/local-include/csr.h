@@ -14,7 +14,7 @@
  * Structure members are stored sequentially in the order in which they are declared:
  * the first member has the lowest memory address and the last member the highest.
  */
-typedef union CsrMstatus_ {
+typedef union mstatus_ {
     struct {
         word_t reserved_0 : 1;
         word_t sie : 1;
@@ -42,10 +42,10 @@ typedef union CsrMstatus_ {
 #endif
         word_t sd : 1;
     };
-    word_t packed;
-} CsrMstatus_t;
+    word_t value;
+} mstatus_t;
 
-typedef union CsrMcause_ {
+typedef union mcause_ {
     struct {
 #ifdef CONFIG_RV64
         word_t code : 63;
@@ -54,8 +54,8 @@ typedef union CsrMcause_ {
 #endif
         word_t intr : 1;
     };
-    word_t packed;
-} CsrMcause_t;
+    word_t value;
+} mcause_t;
 
 vaddr_t *csr_reg(word_t imm);
 #define CSRs(i) *csr_reg(i)

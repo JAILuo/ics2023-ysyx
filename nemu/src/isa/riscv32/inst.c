@@ -46,22 +46,21 @@ static word_t ecall_func(word_t epc) {
     return isa_raise_intr(excp_code, epc);
 } 
 
+//TODO: need to support complete mcause
+//      Now just set PRIV_MODE to mcause, 
+//      and even the position of PRIV_MODE is wrong(should be )
 static word_t mret_func(void) {
-    CsrMstatus_t mstatus_tmp = {.packed = CSRs(CSR_MSTATUS)};
+    mstatus_t mstatus_tmp = {.value = CSRs(CSR_MSTATUS)};
     // 将mstatus.MPIE还原到mstatus.MIE中
     mstatus_tmp.mie = mstatus_tmp.mpie;
     // 将mstatus.MPIE位置为1
     mstatus_tmp.mpie = 1;
     // 将处理器模式摄制成之前保存到MPP字段的处理器模式 mpp
     cpu.priv = mstatus_tmp.mpp;
-    CSRs(CSR_MSTATUS) = mstatus_tmp.packed;
+    CSRs(CSR_MSTATUS) = mstatus_tmp.value;
     
     return cpu.csr.mepc;
 }
-
-//TODO: need to support complete mcause
-//      Now just set PRIV_MODE to mcause, 
-//      and even the position of PRIV_MODE is wrong(should be )
 
 /** 
  * you may forget add sext for your instruction

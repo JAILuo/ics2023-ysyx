@@ -146,7 +146,7 @@ Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
     Context *base = (Context *) ((uint8_t *)stack_end - sizeof(Context));
     // just pass the difftest
     //base->mstatus = 0x1800; // MPP bit[12:11] 0b11 = 3
-    const CsrMstatus_t mstatus_tmp = {
+    const mstatus_t mstatus_tmp = {
         .mpie = 1,
         .mie = 0,
         .sum = 1, // read note and manual
@@ -155,7 +155,7 @@ Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
     };
     // notice the MPIE will be restored to the MIE in nemu
     //base->mstatus |= (1 << 7); MPIE = 1;
-    base->mstatus = mstatus_tmp.packed;
+    base->mstatus = mstatus_tmp.value;
     base->pdir = as->ptr;
     base->np = PRIV_MODE_U;
     base->gpr[2] = (uintptr_t)kstack.end;
