@@ -23,7 +23,7 @@
 #define PRIV_MODE_S 1
 #define PRIV_MODE_M 3
 
-// mcause: interrupt
+// m/scause: interrupt
 enum {
     INTR_S_SOFT = 1,
     INTR_M_SOFT = 3,
@@ -34,7 +34,7 @@ enum {
     INTR_COUNTER_OVERFLOW = 13,
 };
 
-// mcause: exception
+// m/scause: exception
 enum {
     EXCP_INST_MISALIGNED = 0,
     EXCP_INST_ACCESS = 1,
@@ -70,9 +70,9 @@ typedef struct {
     word_t mcycle;
     word_t medeleg;
     word_t mideleg;
-    word_t minstret;
-    word_t mip;
-    word_t m_mie;
+    //word_t minstret;
+    //word_t mip;
+    //word_t m_mie;
 
     word_t satp;
     word_t sepc;

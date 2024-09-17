@@ -51,16 +51,33 @@ static word_t ecall_func(word_t epc) {
 //      and even the position of PRIV_MODE is wrong(should be )
 static word_t mret_func(void) {
     mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
-    // 将mstatus.MPIE还原到mstatus.MIE中
+
+    if (mstatus_tmp.mpp < PRIV_MODE_M) {
+        mstatus_tmp.mprv = 0;
+    }
     mstatus_tmp.mie = mstatus_tmp.mpie;
-    // 将mstatus.MPIE位置为1
     mstatus_tmp.mpie = 1;
-    // 将处理器模式摄制成之前保存到MPP字段的处理器模式 mpp
     cpu.priv = mstatus_tmp.mpp;
     csr_write(CSR_MSTATUS, mstatus_tmp.value);
     
     return cpu.csr.mepc;
 }
+
+static word_t sret_func(void) {
+    sstatus_t sstatus_tmp = {.value = csr_read(CSR_SSTATUS)};
+    mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
+
+    if (mstatus_tmp.mpp < PRIV_MODE_M) {
+        mstatus_tmp.mprv = 0;
+    }
+    sstatus_tmp.sie = sstatus_tmp.spie;
+    sstatus_tmp.spie = 1;
+    cpu.priv = sstatus_tmp.spp;
+    csr_write(CSR_SSTATUS, sstatus_tmp.value);
+    
+    return cpu.csr.sepc;
+}
+
 
 /** 
  * you may forget add sext for your instruction
@@ -253,7 +270,8 @@ static int decode_exec(Decode *s) {
           s->dnpc = ecall_func(s->pc););
   INSTPAT("0011000 00010 00000 000 00000 11100 11", mret      , R,
           s->dnpc = mret_func(););
-  INSTPAT("0001000 00010 00000 000 00000 11100 11", sret      , R);// TODO
+  INSTPAT("0001000 00010 00000 000 00000 11100 11", sret      , R,
+          s->dnpc = sret_func(););
   INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R);
   INSTPAT("0000000 00000 00000 001 00000 00011 11", fence.i   , I);
   INSTPAT("0001001 ????? ????? 000 00000 11100 11", sfence.vma, R);
@@ -350,7 +368,8 @@ static int decode_exec(Decode *s) {
 }
 
 int isa_exec_once(Decode *s) {
-  s->isa.inst.val = inst_fetch(&s->snpc, 4);
-  trace_inst(s->pc, s->isa.inst.val);
-  return decode_exec(s);
+    cpu.csr.mcycle++;
+    s->isa.inst.val = inst_fetch(&s->snpc, 4);
+    trace_inst(s->pc, s->isa.inst.val);
+    return decode_exec(s);
 }
