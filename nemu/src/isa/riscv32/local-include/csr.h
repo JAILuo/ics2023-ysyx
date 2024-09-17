@@ -138,7 +138,9 @@ typedef union medeleg_ {
     word_t value;
 } medeleg_t;
 
-vaddr_t *csr_reg(word_t imm);
-#define CSRs(i) *csr_reg(i)
+word_t csr_read(uint16_t csr_num);
+void csr_write(uint16_t csr_num, word_t data);
+
+
 
 #endif

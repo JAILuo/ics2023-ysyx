@@ -16,11 +16,14 @@
 #include <isa.h>
 #include <cpu/cpu.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "common.h"
 #include "local-include/reg.h"
 #include "local-include/csr.h"
 
+#define CSRs(i) *csr_reg(i)
 
 const char *regs[] = {
   "$0", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
@@ -56,7 +59,6 @@ word_t isa_reg_str2val(const char *s, bool *success) {
             return gpr(i);
         } 
     }
-
     printf("No this reg: %s\n",s);
     *success = false;
     return 0;
@@ -64,9 +66,7 @@ word_t isa_reg_str2val(const char *s, bool *success) {
 
 // opf programming video? 
 // the structure like &(p1->p2.p3.p4) has a minimum number of instructions?
-vaddr_t *csr_reg(word_t imm) {
-    // TODO
-    // how to ensure S/U-mode can't access the M-Mode csr and inst?
+static vaddr_t *csr_reg(word_t imm) {
     switch (imm) {
         // M-mode CSR
     case CSR_MSTATUS:       return &(cpu.csr.mstatus);
@@ -93,4 +93,15 @@ vaddr_t *csr_reg(word_t imm) {
     default: panic("unkwon csr.");
     } 
 }
+
+// TODO: Add access to CSR
+// how to ensure S/U-mode can't access the M-Mode csr and inst?
+word_t csr_read(uint16_t csr_num) {
+    return CSRs(csr_num);
+}
+
+void csr_write(uint16_t csr_num, word_t data) {
+    CSRs(csr_num) = data;
+}
+
 

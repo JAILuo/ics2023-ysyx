@@ -21,27 +21,28 @@
 #include <../local-include/csr.h>
 #include <stdbool.h>
 
-// 合并的 etrace 函数  
 static void etrace(const char* mode, bool is_interrupt, int pp, 
                    word_t epc, unsigned int code) {  
     printf("[etrace begin] " "\33[1;36m%s-mode\33[0m CSR:\n"  
            "    [%s]\n"
            "    previous_privilege: %d\n"  
+           //TODO: add a map 0->U-mode
            "    epc: " FMT_WORD ", cause.code: " FMT_WORD "\n"  
            "[etrace end]\n",  
            mode, is_interrupt ? "interrupt" : "exception", pp, epc, code);  
 }  
 
 static void update_status(word_t NO, vaddr_t epc, bool is_delegate_to_s) {  
+    // 我委托给S模式，要不要把sstatus的同步mstatus？
     if (is_delegate_to_s) {  
-        sstatus_t sstatus_tmp = {.value = CSRs(CSR_SSTATUS)};  
+        sstatus_t sstatus_tmp = {.value = csr_read(CSR_SSTATUS)};  
         
-        CSRs(CSR_SEPC) = epc;  
-        CSRs(CSR_SCAUSE) = NO;  
+        csr_write(CSR_SEPC, epc);
+        csr_write(CSR_SCAUSE, NO);
         sstatus_tmp.spie = sstatus_tmp.sie;  
         sstatus_tmp.sie = 0;  
         sstatus_tmp.spp = cpu.priv;  
-        CSRs(CSR_SSTATUS) = sstatus_tmp.value;  
+        csr_write(CSR_SSTATUS, sstatus_tmp.value);
 
         cpu.priv = PRIV_MODE_S;  
 #ifdef CONFIG_ETRACE  
@@ -49,15 +50,15 @@ static void update_status(word_t NO, vaddr_t epc, bool is_delegate_to_s) {
         etrace("S", scause_tmp.intr, sstatus_tmp.spp, cpu.csr.sepc, scause_tmp.code);  
 #endif  
     } else {  
-        mstatus_t mstatus_tmp = {.value = CSRs(CSR_MSTATUS)};  
+        mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};  
         
-        CSRs(CSR_MEPC) = epc;  
-        CSRs(CSR_MCAUSE) = NO;  
+        csr_write(CSR_MEPC, epc);
+        csr_write(CSR_MCAUSE, NO);
         //TODO: add mtval to store addr?
         mstatus_tmp.mpie = mstatus_tmp.mie;  
         mstatus_tmp.mie = 0;  
         mstatus_tmp.mpp = cpu.priv;  
-        CSRs(CSR_MSTATUS) = mstatus_tmp.value;  
+        csr_write(CSR_MSTATUS, mstatus_tmp.value);
 
         cpu.priv = PRIV_MODE_M;  
 #ifdef CONFIG_ETRACE  
@@ -72,7 +73,7 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     bool is_intr = ((mcause_t)NO).intr;
 
     bool is_delegate_to_s = cpu.priv <= PRIV_MODE_S && 
-                (is_intr ? BIT(CSRs(CSR_MIDELEG), NO) : BIT(CSRs(CSR_MEDELEG), NO));
+                (is_intr ? BIT(csr_read(CSR_MIDELEG), NO) : BIT(csr_read(CSR_MEDELEG), NO));
 
     update_status(NO, epc, is_delegate_to_s);
 
@@ -84,7 +85,7 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
 }
 
 word_t isa_query_intr() {
-    const mstatus_t mstatus_tmp = {.value = CSRs(CSR_MSTATUS)};
+    const mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
     if (cpu.INTR == true && mstatus_tmp.mie != 0) {
         cpu.INTR = false;
         // TODO: need to add more interrupt, not only INTR_M_TIMR

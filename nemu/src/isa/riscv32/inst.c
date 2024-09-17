@@ -50,14 +50,14 @@ static word_t ecall_func(word_t epc) {
 //      Now just set PRIV_MODE to mcause, 
 //      and even the position of PRIV_MODE is wrong(should be )
 static word_t mret_func(void) {
-    mstatus_t mstatus_tmp = {.value = CSRs(CSR_MSTATUS)};
+    mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
     // 将mstatus.MPIE还原到mstatus.MIE中
     mstatus_tmp.mie = mstatus_tmp.mpie;
     // 将mstatus.MPIE位置为1
     mstatus_tmp.mpie = 1;
     // 将处理器模式摄制成之前保存到MPP字段的处理器模式 mpp
     cpu.priv = mstatus_tmp.mpp;
-    CSRs(CSR_MSTATUS) = mstatus_tmp.value;
+    csr_write(CSR_MSTATUS, mstatus_tmp.value);
     
     return cpu.csr.mepc;
 }
@@ -209,45 +209,43 @@ static int decode_exec(Decode *s) {
   
   /* CSR */
   // TODO: the following instructions need to be executed in M-mode?
-  // maybe need to use csr_read/csr_write to manage the relevant inst.
-  // U-mode can't access M/S-mode csr and instructions
-  // S-mode can't access M-mode csr and instructions
-  // these may be consider after finishing mideleg/medeleg
+  // need to consider the CSR level and cpu.priv
   INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I,
           if (cpu.priv != PRIV_MODE_M) {
             isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
           } else {
-            volatile word_t t = CSRs(imm); CSRs(imm) = src1; R(rd) = t;
+            volatile word_t t = csr_read(imm); csr_write(imm, src1); R(rd) = t;
           });
   INSTPAT("??????? ????? ????? 101 ????? 11100 11", csrrwi , I,
           if (cpu.priv != PRIV_MODE_M) {
             isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
           } else {
-            R(rd) = CSRs(imm); CSRs(imm) = ZEXT(imm, 32);
+            R(rd) = csr_read(imm); 
+            csr_write(imm, ZEXT(imm, 32));
           });
   INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, 
           if (cpu.priv != PRIV_MODE_M) {
             isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
           } else {
-            volatile word_t t = CSRs(imm); CSRs(imm) = t | src1; R(rd) = t;
+            volatile word_t t = csr_read(imm); csr_write(imm, t | src1); R(rd) = t;
           });
   INSTPAT("??????? ????? ????? 110 ????? 11100 11", csrrsi , I, 
           if (cpu.priv != PRIV_MODE_M) {
             isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
           } else {
-            volatile word_t t = CSRs(imm); CSRs(imm) = t | ZEXT(imm, 32); R(rd) = t;
+            volatile word_t t = csr_read(imm); csr_write(imm, t | ZEXT(imm, 32)); R(rd) = t;
           });
   INSTPAT("??????? ????? ????? 011 ????? 11100 11", csrrc  , I, 
           if (cpu.priv != PRIV_MODE_M) {
             isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
           } else {
-            volatile word_t t = CSRs(imm); CSRs(imm) = t & ~src1; R(rd) = t;
+            volatile word_t t = csr_read(imm); csr_write(imm, t & ~src1); R(rd) = t;
           });
   INSTPAT("??????? ????? ????? 111 ????? 11100 11", csrrci , I, 
           if (cpu.priv != PRIV_MODE_M) {
             isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
           } else {
-            volatile word_t t = CSRs(imm); CSRs(imm) = t & ~(ZEXT(imm, 32)); R(rd) = t;
+            volatile word_t t = csr_read(imm); csr_write(imm, t & ~(ZEXT(imm, 32))); R(rd) = t;
           });
 
   
