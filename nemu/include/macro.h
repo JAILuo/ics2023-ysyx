@@ -85,6 +85,7 @@
 
 #define BITMASK(bits) ((1ull << (bits)) - 1)
 #define BITS(x, hi, lo) (((x) >> (lo)) & BITMASK((hi) - (lo) + 1)) // similar to x[hi:lo] in verilog
+#define BIT(x, bit) BITS(x, bit, bit)
 #define SEXT(x, len) ({ struct { int64_t n : len; } __x = { .n = x }; (uint64_t)__x.n; })
 #define ZEXT(x, len) ({ uint64_t __mask = (1ULL << (len)) - 1; (x) & __mask; })
 

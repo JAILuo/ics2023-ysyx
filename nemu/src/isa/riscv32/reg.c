@@ -62,16 +62,35 @@ word_t isa_reg_str2val(const char *s, bool *success) {
     return 0;
 }
 
+// opf programming video? 
+// the structure like &(p1->p2.p3.p4) has a minimum number of instructions?
 vaddr_t *csr_reg(word_t imm) {
+    // TODO
+    // how to ensure S/U-mode can't access the M-Mode csr and inst?
     switch (imm) {
-    case CSR_MSTATUS:    return &(cpu.csr.mstatus);
-    case CSR_MTVEC:      return &(cpu.csr.mtvec);
-    case CSR_MSCRATCH:   return &(cpu.csr.mscratch);
-    case CSR_MEPC:       return &(cpu.csr.mepc);
-    case CSR_MCAUSE:     return &(cpu.csr.mcause);
-    case CSR_SATP:       return &(cpu.csr.satp); // in S-mode
-    default: panic("unkwon csr.\n"
-              "now support mstauts, mtvec, mepc, mcause satp mscratch.\n");
+        // M-mode CSR
+    case CSR_MSTATUS:       return &(cpu.csr.mstatus);
+    case CSR_MEDELEG:       return &(cpu.csr.medeleg);
+    case CSR_MIDELEG:       return &(cpu.csr.mideleg);
+    case CSR_MIE:           return &(cpu.csr.m_mie);
+    case CSR_MTVEC:         return &(cpu.csr.mtvec);
+    case CSR_MSCRATCH:      return &(cpu.csr.mscratch);
+    case CSR_MEPC:          return &(cpu.csr.mepc);
+    case CSR_MCAUSE:        return &(cpu.csr.mcause);
+    case CSR_MTVAL:         return &(cpu.csr.mtval);
+    case CSR_MIP:           return &(cpu.csr.mip);
+    case CSR_MCYCLE:        return &(cpu.csr.mcycle);
+    case CSR_MINSTRET:      return &(cpu.csr.minstret); 
+
+    // S-mode CSR
+    case CSR_SSTATUS:       return &(cpu.csr.sstatus);
+    case CSR_STVEC:         return &(cpu.csr.stvec);
+    case CSR_SSCRATCH:      return &(cpu.csr.sscratch);
+    case CSR_SEPC:          return &(cpu.csr.sepc);
+    case CSR_SCAUSE:        return &(cpu.csr.scause);
+    case CSR_SATP:          return &(cpu.csr.satp);
+
+    default: panic("unkwon csr.");
     } 
 }
 

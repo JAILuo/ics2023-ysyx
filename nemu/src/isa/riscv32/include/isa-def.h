@@ -17,6 +17,7 @@
 #define __ISA_RISCV_H__
 
 #include <common.h>
+#include <stdint.h>
 
 #define PRIV_MODE_U 0
 #define PRIV_MODE_S 1
@@ -64,6 +65,7 @@ typedef struct {
     word_t mepc;
     word_t mtvec;
     word_t mscratch;
+
     word_t mtval;
     word_t mcycle;
     word_t medeleg;

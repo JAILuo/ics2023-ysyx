@@ -208,18 +208,47 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   
   /* CSR */
+  // TODO: the following instructions need to be executed in M-mode?
+  // maybe need to use csr_read/csr_write to manage the relevant inst.
+  // U-mode can't access M/S-mode csr and instructions
+  // S-mode can't access M-mode csr and instructions
+  // these may be consider after finishing mideleg/medeleg
   INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I,
-          volatile word_t t = CSRs(imm); CSRs(imm) = src1; R(rd) = t);
+          if (cpu.priv != PRIV_MODE_M) {
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+          } else {
+            volatile word_t t = CSRs(imm); CSRs(imm) = src1; R(rd) = t;
+          });
   INSTPAT("??????? ????? ????? 101 ????? 11100 11", csrrwi , I,
-          R(rd) = CSRs(imm); CSRs(imm) = ZEXT(imm, 32););
+          if (cpu.priv != PRIV_MODE_M) {
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+          } else {
+            R(rd) = CSRs(imm); CSRs(imm) = ZEXT(imm, 32);
+          });
   INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, 
-          volatile word_t t = CSRs(imm); CSRs(imm) = t | src1; R(rd) = t);
+          if (cpu.priv != PRIV_MODE_M) {
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+          } else {
+            volatile word_t t = CSRs(imm); CSRs(imm) = t | src1; R(rd) = t;
+          });
   INSTPAT("??????? ????? ????? 110 ????? 11100 11", csrrsi , I, 
-          volatile word_t t = CSRs(imm); CSRs(imm) = t | ZEXT(imm, 32); R(rd) = t;);
+          if (cpu.priv != PRIV_MODE_M) {
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+          } else {
+            volatile word_t t = CSRs(imm); CSRs(imm) = t | ZEXT(imm, 32); R(rd) = t;
+          });
   INSTPAT("??????? ????? ????? 011 ????? 11100 11", csrrc  , I, 
-          volatile word_t t = CSRs(imm); CSRs(imm) = t & ~src1; R(rd) = t);
+          if (cpu.priv != PRIV_MODE_M) {
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+          } else {
+            volatile word_t t = CSRs(imm); CSRs(imm) = t & ~src1; R(rd) = t;
+          });
   INSTPAT("??????? ????? ????? 111 ????? 11100 11", csrrci , I, 
-          volatile word_t t = CSRs(imm); CSRs(imm) = t & ~(ZEXT(imm, 32)); R(rd) = t);
+          if (cpu.priv != PRIV_MODE_M) {
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+          } else {
+            volatile word_t t = CSRs(imm); CSRs(imm) = t & ~(ZEXT(imm, 32)); R(rd) = t;
+          });
 
   
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall     , I,
