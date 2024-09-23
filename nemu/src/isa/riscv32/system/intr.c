@@ -21,6 +21,7 @@
 #include <../local-include/csr.h>
 #include <stdbool.h>
 
+#ifdef CONFIG_ETRACE
 const char *priv_name[] = {
     "U-mode", // 0
     "S-mode", // 1
@@ -38,13 +39,14 @@ static void etrace(const char* mode, bool is_interrupt, int pp,
     printf("[etrace begin] " "\33[1;36m%s-mode\33[0m CSR\n"  
            "    [%s]\n"
            "    previous_privilege: \33[1;36m%s\33[0m\n"  
-           "    epc: " FMT_WORD ", cause.code: " FMT_WORD "\n"  
-           "    tval:" FMT_WORD "\n"
+           "    epc: " FMT_WORD ", cause.code: " FMT_WORD ", tval:" FMT_WORD "\n"
            "[etrace end]\n",  
            mode, is_interrupt ? "interrupt" : "exception", 
            PRIV_NAME(pp), epc, code, tval);  
 }  
+#endif
 
+//TODO: how to add the addr of exception.
 static word_t get_mtval_for_exception(word_t NO, vaddr_t epc) {
     word_t mtval = 0;
     switch (NO) {
@@ -88,7 +90,6 @@ static void update_status(word_t NO, vaddr_t epc, bool is_delegate_to_s) {
         csr_write(CSR_SSTATUS, sstatus_tmp.value);
 
         cpu.priv = PRIV_MODE_S;  
-
 #ifdef CONFIG_ETRACE  
         scause_t scause_tmp = {.value = NO};  
         etrace("S", scause_tmp.intr, sstatus_tmp.spp, cpu.csr.sepc, 
@@ -102,7 +103,6 @@ static void update_status(word_t NO, vaddr_t epc, bool is_delegate_to_s) {
 
         csr_write(CSR_MEPC, epc);
         csr_write(CSR_MCAUSE, NO);
-        //TODO: add mtval to store addr?
         mstatus_tmp.mpie = mstatus_tmp.mie;  
         mstatus_tmp.mie = 0;  
         mstatus_tmp.mpp = cpu.priv;  
@@ -120,9 +120,11 @@ static void update_status(word_t NO, vaddr_t epc, bool is_delegate_to_s) {
 // ECALL
 word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     bool is_intr = ((mcause_t)NO).intr;
+    //printf("is_intr:%d\n", is_intr);
 
     bool is_delegate_to_s = cpu.priv <= PRIV_MODE_S && 
                 (is_intr ? BIT(csr_read(CSR_MIDELEG), NO) : BIT(csr_read(CSR_MEDELEG), NO));
+    //printf("priv:%d  deleg:%d\n", cpu.priv, is_delegate_to_s);
 
     update_status(NO, epc, is_delegate_to_s);
 
@@ -133,14 +135,55 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     }
 }
 
+
+#ifdef CONFIG_RV64
+#define INTR_BIT (1ULL << 63)
+#else
+#define INTR_BIT (1ULL << 31)
+#endif
+
 //  TODO: need to add mie, mip, m/stvec
 word_t isa_query_intr() {
+    const int priority[] = {
+        INTR_M_EXTN, INTR_M_SOFT, INTR_M_TIMR,
+        INTR_S_EXTN, INTR_S_SOFT, INTR_S_TIMR,
+    };
+    int nr_irq = ARRLEN(priority);
+
+    //mideleg_t mideleg_tmp = (mideleg_t)csr_read(CSR_MIDELEG);
     const mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
-    if (cpu.INTR == true && mstatus_tmp.mie != 0) {
+    //printf("mie:%d\n", mstatus_tmp.mie);
+
+    bool global_irq_enable = mstatus_tmp.mie;
+
+    if (cpu.INTR == true && global_irq_enable == true) {
         cpu.INTR = false;
-        // TODO: need to add more interrupt, not only INTR_M_TIMR
-        mcause_t mcause_tmp = {.intr = true, .code = INTR_M_TIMR};
-        return mcause_tmp.value;
+        for (int i = 2; i < nr_irq; i++) {
+            // TODO: the problem now is how to distingish 3 M-intr
+            // now the code I wrote is be bound to trigger intr...
+            // we need a func to judge which intr
+            int irq = priority[i];
+            //printf("irq_mum:%llx\n", irq | INTR_BIT);
+            return irq | INTR_BIT;
+            
+            //bool deleg = (mideleg_tmp.value & (1 << irq)) != 0;
+            //bool global_irq_enable = deleg ?
+            //    ((cpu.priv == PRIV_MODE_S) && mstatus_tmp.sie) || (cpu.priv < PRIV_MODE_S) :
+            //    ((cpu.priv == PRIV_MODE_M) && mstatus_tmp.mie) || (cpu.priv < PRIV_MODE_M);
+            //printf("enable:%d\n", global_irq_enable);
+                                        
+            //printf("priority:%d\n", irq);
+            //printf("irq_mum:%llx\n", irq | INTR_BIT);
+            //if (global_irq_enable) return irq | INTR_BIT;
+        }
     }
+
+    // const mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
+    // if (cpu.INTR == true && mstatus_tmp.mie != 0) {
+    //     cpu.INTR = false;
+    //     // TODO: need to add more interrupt, not only INTR_M_TIMR
+    //     mcause_t mcause_tmp = {.intr = true, .code = INTR_M_TIMR};
+    //     return mcause_tmp.value;
+    // }
     return INTR_EMPTY; // ((word_t) -1)
 }

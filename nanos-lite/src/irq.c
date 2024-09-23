@@ -10,7 +10,6 @@ static Context* do_event(Event e, Context* c) {
         //printf("before, a0(filename):%p, a1(argv):%p, a2(envp): %p\n", 
         //      c->GPR2, c->GPR3, c->GPR4);
         //Log("in user_handle, before schedule, Context: %p, c->sp:%p", c, c->gpr[2]);
-        
         c = schedule(c); 
         //printf("test dummy...\n");
         //Log("in user_handle, after schedule, Context: %p, c->sp:%p", c, c->gpr[2]);
@@ -22,10 +21,10 @@ static Context* do_event(Event e, Context* c) {
     //case EVENT_PAGEFAULT: break;
     case EVENT_IRQ_TIMER:
         //Log("IRQ before: %p", c);
-        //printf("IRQ test...\n");
         c = schedule(c);
         //Log("IRQ after: %p", c);
         break;
+    case EVENT_IRQ_IODEV: break;
     default: panic("Unhandled event ID = %d", e.event);
   }
 

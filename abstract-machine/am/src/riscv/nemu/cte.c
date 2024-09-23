@@ -12,6 +12,8 @@ Context* __am_irq_handle(Context *c) {
     __am_get_cur_as(c);
 
     mcause_t mcause = {.value = c->mcause};
+    //printf("mcause: intr: %d code: %d\n", mcause.intr, mcause.code);
+    //printf("all: %x\n", mcause.value);
 
     if (user_handler) {
         //printf("in __am_irq_handle,c:%p c->sp:%p\n", c, c->gpr[2]);
@@ -20,12 +22,17 @@ Context* __am_irq_handle(Context *c) {
         if (mcause.intr) { // interrupt
             switch (mcause.code) {
             case INTR_M_TIMR:
+            case INTR_S_TIMR:
                 ev.event = EVENT_IRQ_TIMER; break;
+            case INTR_M_EXTN:
+            case INTR_S_EXTN:
+                ev.event = EVENT_IRQ_IODEV; break;
             default: ev.event = EVENT_ERROR; break;
             }
         } else { // exception
             switch (mcause.code) {
             case EXCP_U_CALL:
+            case EXCP_S_CALL:
             case EXCP_M_CALL:
                 if (c->GPR1 == -1) { // YIELD
                     ev.event = EVENT_YIELD;
