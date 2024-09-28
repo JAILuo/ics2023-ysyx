@@ -15,7 +15,6 @@ int main() {
 
   init_mm();
 
-  //printf("1-92413r-vd\n");
   init_device();
 
   init_ramdisk();

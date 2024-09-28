@@ -72,13 +72,13 @@ static vaddr_t *csr_reg(word_t imm) {
     case CSR_MSTATUS:       return &(cpu.csr.mstatus);
     case CSR_MEDELEG:       return &(cpu.csr.medeleg);
     case CSR_MIDELEG:       return &(cpu.csr.mideleg);
-    //case CSR_MIE:           return &(cpu.csr.m_mie);
+    case CSR_MIE:           return &(cpu.csr.mie);
     case CSR_MTVEC:         return &(cpu.csr.mtvec);
     case CSR_MSCRATCH:      return &(cpu.csr.mscratch);
     case CSR_MEPC:          return &(cpu.csr.mepc);
     case CSR_MCAUSE:        return &(cpu.csr.mcause);
     case CSR_MTVAL:         return &(cpu.csr.mtval);
-    //case CSR_MIP:           return &(cpu.csr.mip);
+    case CSR_MIP:           return &(cpu.csr.mip);
     case CSR_MCYCLE:        return &(cpu.csr.mcycle);
     //case CSR_MINSTRET:      return &(cpu.csr.minstret); 
 

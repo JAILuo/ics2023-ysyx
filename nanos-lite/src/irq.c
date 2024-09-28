@@ -1,4 +1,5 @@
 #include <common.h>
+#include <stdbool.h>
 
 extern void do_syscall(Context *c);
 extern Context* schedule(Context *prev);
@@ -21,10 +22,13 @@ static Context* do_event(Event e, Context* c) {
     //case EVENT_PAGEFAULT: break;
     case EVENT_IRQ_TIMER:
         //Log("IRQ before: %p", c);
+        //printf("before schedule, c->mepc:%p\n", c->mepc);
         c = schedule(c);
         //Log("IRQ after: %p", c);
+        //printf("after schedule, c->mepc:%p\n", c->mepc);
         break;
     case EVENT_IRQ_IODEV: break;
+    case EVENT_IRQ_SOFTWARE: break;
     default: panic("Unhandled event ID = %d", e.event);
   }
 
@@ -32,6 +36,6 @@ static Context* do_event(Event e, Context* c) {
 }
 
 void init_irq(void) {
-  Log("Initializing interrupt/exception handler...");
-  cte_init(do_event);
+    Log("Initializing interrupt/exception handler...");
+    cte_init(do_event);
 }

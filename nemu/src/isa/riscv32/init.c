@@ -18,6 +18,8 @@
 #include <memory/paddr.h>
 #include <stdbool.h>
 
+void init_clint(void);
+
 // this is not consistent with uint8_t
 // but it is ok since we do not access the array directly
 static const uint32_t img [] = {
@@ -39,7 +41,9 @@ static void restart() {
   // MPP: bit[12:11]MPP: 3 
   cpu.csr.mstatus = MUXDEF(CONFIG_RV64, 0xa00001800, 0x00001800);
   cpu.priv = PRIV_MODE_M;
-  cpu.INTR = false;
+  cpu.INTR = 0;
+
+  init_clint();
 }
 
 void init_isa() {

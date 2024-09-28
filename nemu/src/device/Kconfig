@@ -46,6 +46,32 @@ config RTC_MMIO
   default 0xa0000048
 endif # HAS_TIMER
 
+menuconfig HAS_CLINT
+  bool "Enable clint"
+  default y
+
+if HAS_CLINT
+config CLINT_PORT
+  depends on HAS_PORT_IO
+  hex "Port address of the clint"
+  default 0x20
+
+config CLINT_MMIO
+  hex "MMIO address of the clint"
+  default 0xb0000020
+endif # HAS_CLINT
+
+menuconfig HAS_PLIC
+  depends on !SHARE
+  bool "Enable PLIC"
+  default n
+
+if HAS_PLIC
+config PLIC_ADDRESS
+  hex "base address of PLIC"
+  default 0x3c000000
+endif # HAS_PLIC
+
 menuconfig HAS_KEYBOARD
   bool "Enable keyboard"
   default y

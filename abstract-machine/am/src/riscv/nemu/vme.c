@@ -2,6 +2,7 @@
 #include <nemu.h>
 #include <riscv/riscv.h>
 #include <klib.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 static AddrSpace kas = {};
@@ -153,6 +154,7 @@ Context *ucontext(AddrSpace *as, Area kstack, void *entry) {
         .mxr = 1, // about S-mode, OS will do this, design processor core don't care?
         .mpp = PRIV_MODE_U,
     };
+  printf("iset:%d\n", ienabled());
     // notice the MPIE will be restored to the MIE in nemu
     //base->mstatus |= (1 << 7); MPIE = 1;
     base->mstatus = mstatus_tmp.value;

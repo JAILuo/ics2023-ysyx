@@ -155,26 +155,42 @@ word_t isa_query_intr() {
     //printf("mie:%d\n", mstatus_tmp.mie);
 
     bool global_irq_enable = mstatus_tmp.mie;
+    // bool enable_irq = global_irq_enable && mie_irq && concrete_mip_ieq;
+    //printf("global_irq_enable: %d\n", global_irq_enable);
 
     if (cpu.INTR == true && global_irq_enable == true) {
         cpu.INTR = false;
-        for (int i = 2; i < nr_irq; i++) {
-            // TODO: the problem now is how to distingish 3 M-intr
+        for (int i = 0; i < nr_irq; i++) {
+            // TODO: the problem now is how to distinguish 3 M-intr
             // now the code I wrote is be bound to trigger intr...
             // we need a func to judge which intr
             int irq = priority[i];
             //printf("irq_mum:%llx\n", irq | INTR_BIT);
-            return irq | INTR_BIT;
+
+            mie_t mie = {.value = csr_read(CSR_MIE)};
+            mip_t mip = {.value = csr_read(CSR_MIP)};
+            //printf("mie: " FMT_WORD "\nmip: " FMT_WORD "\n", mie, mip);
+            bool mie_irq = (mie.value & (1 << irq)) != 0;
+            bool mip_irq = (mip.value & (1 << irq)) != 0;
+            //printf("mie_irq: %d\n", mie_irq);
+            //printf("mip_irq: %d\n", mip_irq);
             
-            //bool deleg = (mideleg_tmp.value & (1 << irq)) != 0;
-            //bool global_irq_enable = deleg ?
-            //    ((cpu.priv == PRIV_MODE_S) && mstatus_tmp.sie) || (cpu.priv < PRIV_MODE_S) :
-            //    ((cpu.priv == PRIV_MODE_M) && mstatus_tmp.mie) || (cpu.priv < PRIV_MODE_M);
-            //printf("enable:%d\n", global_irq_enable);
-                                        
-            //printf("priority:%d\n", irq);
-            //printf("irq_mum:%llx\n", irq | INTR_BIT);
-            //if (global_irq_enable) return irq | INTR_BIT;
+            if (mie_irq && mip_irq) {
+                return irq | INTR_BIT;
+            }
+
+            // bool deleg = (mideleg_tmp.value & (1 << irq)) != 0;
+            // bool global_irq_enable = deleg ?
+            //     ((cpu.priv == PRIV_MODE_S) && mstatus_tmp.sie) || (cpu.priv < PRIV_MODE_S) :
+            //     ((cpu.priv == PRIV_MODE_M) && mstatus_tmp.mie) || (cpu.priv < PRIV_MODE_M);
+            // if (mstatus_tmp.mie) {
+            // 
+            // }
+            // //printf("enable:%d\n", global_irq_enable);
+            //                             
+            // //printf("priority:%d\n", irq);
+            // //printf("irq_mum:%llx\n", irq | INTR_BIT);
+            // if (global_irq_enable) return irq | INTR_BIT;
         }
     }
 

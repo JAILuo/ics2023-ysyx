@@ -17,6 +17,7 @@
 #define __ISA_RISCV_H__
 
 #include <common.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define PRIV_MODE_U 0
@@ -71,8 +72,8 @@ typedef struct {
     word_t medeleg;
     word_t mideleg;
     //word_t minstret;
-    //word_t mip;
-    //word_t m_mie;
+    word_t mip;
+    word_t mie;
 
     word_t satp;
     word_t sepc;

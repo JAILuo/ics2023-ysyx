@@ -138,9 +138,53 @@ typedef union medeleg_ {
     word_t value;
 } medeleg_t;
 
+typedef union mip_ {
+    struct {
+        word_t reserved_0 : 1;
+        word_t ssip : 1;
+        word_t reserved_1 : 1;
+        word_t msip : 1;
+        word_t reserved_2 : 1;
+        word_t stip : 1;
+        word_t reserved_3 : 1;
+        word_t mtip : 1;
+        word_t reserved_4 : 1;
+        word_t seip : 1;
+        word_t reserved_5 : 1;
+        word_t meip : 1;
+#ifdef CONFIG_RV64
+        word_t code : 52;
+#else
+        word_t code : 20;
+#endif
+    };
+    word_t value;
+} mip_t;
+
+typedef union mie_ {
+    struct {
+        word_t reserved_0 : 1;
+        word_t ssie : 1;
+        word_t reserved_1 : 1;
+        word_t msie : 1;
+        word_t reserved_2 : 1;
+        word_t stie : 1;
+        word_t reserved_3 : 1;
+        word_t mtie : 1;
+        word_t reserved_4 : 1;
+        word_t seie : 1;
+        word_t reserved_5 : 1;
+        word_t meie : 1;
+#ifdef CONFIG_RV64
+        word_t code : 52;
+#else
+        word_t code : 20;
+#endif
+    };
+    word_t value;
+} mie_t;
+
 word_t csr_read(uint16_t csr_num);
 void csr_write(uint16_t csr_num, word_t data);
-
-
 
 #endif

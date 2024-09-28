@@ -13,11 +13,9 @@ Context* __am_irq_handle(Context *c) {
 
     mcause_t mcause = {.value = c->mcause};
     //printf("mcause: intr: %d code: %d\n", mcause.intr, mcause.code);
-    //printf("all: %x\n", mcause.value);
 
     if (user_handler) {
         //printf("in __am_irq_handle,c:%p c->sp:%p\n", c, c->gpr[2]);
-        //printf("mcause: %x\n", c->mcause);
         Event ev = {0};
         if (mcause.intr) { // interrupt
             switch (mcause.code) {
@@ -27,6 +25,9 @@ Context* __am_irq_handle(Context *c) {
             case INTR_M_EXTN:
             case INTR_S_EXTN:
                 ev.event = EVENT_IRQ_IODEV; break;
+            case INTR_M_SOFT:
+            case INTR_S_SOFT:
+                ev.event = EVENT_IRQ_SOFTWARE; break;
             default: ev.event = EVENT_ERROR; break;
             }
         } else { // exception
@@ -107,7 +108,8 @@ bool ienabled() {
 
 void iset(bool enable) {
     mstatus_t mstatus_tmp;
-    asm volatile("csrr %0, satp" : "=r"(mstatus_tmp));
+    asm volatile("csrr %0, satp" : "=r"(mstatus_tmp.value));
     mstatus_tmp.mie = enable;
-    asm volatile("csrw mstatus, %0" : : "r"(mstatus_tmp));
+    printf("iset_test\n");
+    asm volatile("csrw mstatus, %0" : : "r"(mstatus_tmp.value));
 }

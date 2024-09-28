@@ -13,6 +13,8 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include <common.h>
+#include <isa.h>
 #include <device/map.h>
 #include <device/alarm.h>
 #include <utils.h>
@@ -28,14 +30,14 @@ static void rtc_io_handler(uint32_t offset, int len, bool is_write) {
   }
 }
 
-//#ifndef CONFIG_TARGET_AM
+//TODO: 可以编个号，1时钟中断，2软件中断.....
 static void timer_intr() {
-  if (nemu_state.state == NEMU_RUNNING) {
-    extern void dev_raise_intr();
-    dev_raise_intr();
-  }
+    if (nemu_state.state == NEMU_RUNNING) { 
+        //cpu.INTR = 1; 
+        //extern void dev_raise_intr();
+        //dev_raise_intr();
+    }
 }
-//#endif
 
 void init_timer() {
   rtc_port_base = (uint32_t *)new_space(8);
