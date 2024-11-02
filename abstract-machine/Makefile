@@ -48,6 +48,7 @@ endif
 ### Create the destination directory (`build/$ARCH`)
 WORK_DIR  = $(shell pwd)
 DST_DIR   = $(WORK_DIR)/build/$(ARCH)
+BUILD_DIR = $(WORK_DIR)/build
 $(shell mkdir -p $(DST_DIR))
 
 ### Compilation targets (a binary image or archive)
@@ -161,3 +162,4 @@ clean-all: $(CLEAN_ALL) clean
 $(CLEAN_ALL):
 	-@$(MAKE) -s -C $@ clean
 .PHONY: clean-all $(CLEAN_ALL)
+

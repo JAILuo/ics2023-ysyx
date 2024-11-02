@@ -3,6 +3,11 @@ RAMDISK_FILE = build/ramdisk.img
 
 NAME = nanos-lite
 SRCS = $(shell find -L ./src/ -name "*.c" -o -name "*.cpp" -o -name "*.S")
+
+ifeq ($(ARCH),)
+export ARCH := riscv32-nemu
+endif
+
 include $(AM_HOME)/Makefile
 
 ifeq ($(ARCH),native)
@@ -23,6 +28,13 @@ else
 ifeq ($(wildcard $(NAVY_HOME)/libs/libos/src/syscall.h),)
   $(error $$NAVY_HOME must be a Navy-apps repo)
 endif
+
+log: update
+	make -nB \
+         | grep -ve '^\(echo\|mkdir\|make\)' \
+         | sed "s#$(AM_HOME)#\AM#g" \
+         | sed "s#$(PWD)#.#g" \
+		 > $(BUILD_DIR)/compile.log
 
 update:
 	$(MAKE) -s -C $(NAVY_HOME) ISA=$(ISA) ramdisk

@@ -37,7 +37,7 @@ void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *ctl) {
     uint32_t *fb = (uint32_t *)(uintptr_t)FB_ADDR;
     uint32_t screen_w = inl(VGACTL_ADDR) >> 16;
     uint32_t pitch = screen_w * sizeof(uint32_t); // 计算帧缓冲一行的字节数
-         for (int j = 0; j < h; j++) { // 遍历高度
+    for (int j = 0; j < h; j++) { // 遍历高度
         for (int i = 0; i < w; i++) { // 遍历宽度
             // 计算帧缓冲中目标像素的位置
             uint32_t fb_offset = (y + j) * pitch / sizeof(uint32_t) + (x + i);
@@ -50,7 +50,6 @@ void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *ctl) {
     }
 }
 #else
-
 /* another method? */
 void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *ctl) {
   int x = ctl->x, y = ctl->y, w = ctl->w, h = ctl->h;

@@ -45,6 +45,13 @@ gdb: run-env
 count:
 	find $(NEMU_HOME) -name "*.c" -o -name "*.h" | xargs grep -v -e '^$$' | wc -l
 
+log: run-env
+	make -nB \
+			| grep -ve '^\(\#\|\/home\|mv\|echo\|mkdir\|make\)' \
+			| sed 's#$(NEMU_HOME)#\NEMU#g' \
+			| sed 's#$(PWD)#.#g' \
+			> $(BUILD_DIR)/compile.log
+
 clean-tools = $(dir $(shell find ./tools -maxdepth 2 -mindepth 2 -name "Makefile"))
 $(clean-tools):
 	-@$(MAKE) -s -C $@ clean

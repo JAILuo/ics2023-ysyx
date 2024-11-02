@@ -110,6 +110,5 @@ void iset(bool enable) {
     mstatus_t mstatus_tmp;
     asm volatile("csrr %0, satp" : "=r"(mstatus_tmp.value));
     mstatus_tmp.mie = enable;
-    printf("iset_test\n");
     asm volatile("csrw mstatus, %0" : : "r"(mstatus_tmp.value));
 }
