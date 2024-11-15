@@ -74,6 +74,13 @@ typedef struct {
     //word_t minstret;
     word_t mip;
     word_t mie;
+    word_t mvendorid;
+    word_t misa;
+    word_t pmpaddr0;
+    word_t pmpcfg0;
+    word_t marchid;
+    word_t mimpid;
+    word_t mhartid;
 
     word_t satp;
     word_t sepc;
@@ -83,7 +90,6 @@ typedef struct {
     word_t sscratch;
     // add more...
 } riscv_CPU_csr;
-
 
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];

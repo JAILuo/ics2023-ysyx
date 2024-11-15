@@ -165,7 +165,6 @@ word_t isa_query_intr() {
             // now the code I wrote is be bound to trigger intr...
             // we need a func to judge which intr
             int irq = priority[i];
-            //printf("irq_mum:%llx\n", irq | INTR_BIT);
 
             mie_t mie = {.value = csr_read(CSR_MIE)};
             mip_t mip = {.value = csr_read(CSR_MIP)};
@@ -176,6 +175,7 @@ word_t isa_query_intr() {
             //printf("mip_irq: %d\n", mip_irq);
             
             if (mie_irq && mip_irq) {
+                //printf("irq_mum:%llx\n", irq | INTR_BIT);
                 return irq | INTR_BIT;
             }
 

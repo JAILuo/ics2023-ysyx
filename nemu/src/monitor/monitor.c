@@ -15,6 +15,8 @@
 
 #include "common.h"
 #include "cpu/cpu.h"
+#include "debug.h"
+#include "isa-def.h"
 #include <isa.h>
 #include <memory/paddr.h>
 #include <elf.h>
@@ -57,6 +59,7 @@ static char *diff_so_file = NULL;
 static char *img_file = NULL;
 static int difftest_port = 1234;
 static char *elf_file = NULL;
+static char *dtb_file = NULL;
 
 static long load_img() {
   if (img_file == NULL) {
@@ -65,7 +68,7 @@ static long load_img() {
   }
 
   FILE *fp = fopen(img_file, "rb");
-  Assert(fp, "Can not open '%s'", img_file);
+  Assert(fp, "Can not open...... '%s'", img_file);
 
   fseek(fp, 0, SEEK_END);
   long size = ftell(fp);
@@ -80,6 +83,29 @@ static long load_img() {
   return size;
 }
 
+static void load_dtb() {
+    if (dtb_file == NULL) {
+        Log("no dtb.");
+        return;
+    }
+    FILE *fp = fopen(dtb_file, "rb");
+    Assert(fp, "Can not open '%s'", dtb_file);
+    
+    fseek(fp, 0, SEEK_END);
+    long dtb_size = ftell(fp);
+
+    Log("The dtb_file is %s, size = %ld", dtb_file, dtb_size);
+
+    fseek(fp, 0, SEEK_SET);
+    long dtb_ptr = CONFIG_MSIZE - dtb_size - sizeof(riscv32_CPU_state);
+    int ret = fread(guest_to_host(RESET_VECTOR + dtb_ptr), dtb_size, 1, fp);
+    assert(ret == 1);
+
+    cpu.gpr[10] = 0x00; // hart ID
+    cpu.gpr[11] = CONFIG_MBASE + dtb_ptr; 
+    Log("dtb_ptr: %lx", dtb_ptr);
+}
+
 static int parse_args(int argc, char *argv[]) {
   const struct option table[] = {
     {"batch"    , no_argument      , NULL, 'b'},
@@ -88,10 +114,11 @@ static int parse_args(int argc, char *argv[]) {
     {"port"     , required_argument, NULL, 'p'},
     {"elf"      , required_argument, NULL, 'e'},
     {"help"     , no_argument      , NULL, 'h'},
+    {"dts"      , required_argument, NULL, 't'},
     {0          , 0                , NULL,  0 },
   };
   int o;
-  while ( (o = getopt_long(argc, argv, "-bhl:d:p:e:", table, NULL)) != -1) {
+  while ( (o = getopt_long(argc, argv, "-bhl:d:p:e:t:", table, NULL)) != -1) {
     switch (o) {
       case 'b': sdb_set_batch_mode();                   break;
       case 'p': sscanf(optarg, "%d", &difftest_port);   break;
@@ -99,13 +126,15 @@ static int parse_args(int argc, char *argv[]) {
       case 'd': diff_so_file = optarg;                  break;
       case  1 : img_file = optarg;                      return 0;
       case 'e': elf_file = optarg;                      break;
+      case 't': dtb_file = optarg;                      break;
       default:
         printf("Usage: %s [OPTION...] IMAGE [args]\n\n", argv[0]);
-        printf("\t-b,--batch              run with batch mode\n");
-        printf("\t-l,--log=FILE           output log to FILE\n");
-        printf("\t-d,--diff=REF_SO        run DiffTest with reference REF_SO\n");
-        printf("\t-p,--port=PORT          run DiffTest with port PORT\n");
-        printf("\t-e,--elf=elf_file       parse elf_file");
+        printf("\t-b,--batch                run with batch mode\n");
+        printf("\t-l,--log=FILE             output log to FILE\n");
+        printf("\t-d,--diff=REF_SO          run DiffTest with reference REF_SO\n");
+        printf("\t-p,--port=PORT            run DiffTest with port PORT\n");
+        printf("\t-e,--elf=elf_file         parse elf_file\n");
+        printf("\t-t,--dtb=dtb_file, or 'disable'");
         printf("\n");
         exit(0);
     }
@@ -136,6 +165,7 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Load the image to memory. This will overwrite the built-in image. */
   long img_size = load_img();
+  load_dtb();
 
   /* Initialize differential testing. */
   init_difftest(diff_so_file, img_size, difftest_port);

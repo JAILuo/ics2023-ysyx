@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "common.h"
+#include "debug.h"
 #include "include/isa-def.h"
 #include "isa.h"
 #include "local-include/reg.h"
@@ -273,6 +274,7 @@ static int decode_exec(Decode *s) {
   INSTPAT("0001000 00010 00000 000 00000 11100 11", sret      , R,
           s->dnpc = sret_func(););
   INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R);
+  INSTPAT("0000??? ????? 00000 000 00000 00011 11", fence     , I);
   INSTPAT("0000000 00000 00000 001 00000 00011 11", fence.i   , I);
   INSTPAT("0001001 ????? ????? 000 00000 11100 11", sfence.vma, R);
 
@@ -311,27 +313,36 @@ static int decode_exec(Decode *s) {
   // 00010   aq rl 00000 rs1       010    rd      0101111
   INSTPAT("00010?? 00000 ????? 010 ????? 01011 11", lr.w   , R, 
           cpu.reserved_addr = src1;
+          printf("now pc: %x\n", cpu.pc);
           printf("[lr.w] reserved_addr: %x\n", cpu.reserved_addr);
-          R(rd) = SEXT(Mr(src1 + imm, 4), 32);
-          cpu.lr_valid = true;); 
+          //R(rd) = SEXT(Mr(src1 + imm, 4), 32);
+          R(rd) = SEXT(Mr(src1, 4), 32);
+          cpu.lr_valid = true;
+          ); 
   INSTPAT("00011?? ????? ????? 010 ????? 01011 11", sc.w   , R,
-          int success = (cpu.reserved_addr == src1) && cpu.lr_valid;
+          int success = cpu.lr_valid && (cpu.reserved_addr == src1);
+          printf("now pc: %x\n", cpu.pc);
           printf("[sc.w] reserved_addr: %x  src1: %x  vaild: %d  success: %d\n",
                  cpu.reserved_addr, src1, cpu.lr_valid, success);
-          cpu.lr_valid = false;
           if (success) {
             Mw(src1, 4, src2); R(rd) = 0;
+            //printf("success...........\n");
+            //printf("src1: %x  src2:%x, R(rd)\n", src1, src2);
           } else {
-            paddr_t paddr = R(rd);
-            if (isa_mmu_check(paddr, 4, MEM_TYPE_WRITE) == MMU_TRANSLATE) {
-              paddr = isa_mmu_translate(paddr, 4, MEM_TYPE_WRITE);
-            }
             R(rd) = 1;
+            // paddr_t paddr = R(rd);
+            // if (isa_mmu_check(paddr, 4, MEM_TYPE_WRITE) == MMU_TRANSLATE) {
+            //   paddr = isa_mmu_translate(paddr, 4, MEM_TYPE_WRITE);
+            // }
+            // R(rd) = 1;
             //isa_raise_intr(EXCP_STORE_ACCESS, s->pc);
           }
+          cpu.lr_valid = false;
+          cpu.reserved_addr = 0;
          );
 
-//   INSTPAT("00001?? ????? ????? 010 ????? 01011 11", amoswap.w, R,
+  // In single core, locking is achieved by turning off the interrupt(mstatus.mie)
+  INSTPAT("00001?? ????? ????? 010 ????? 01011 11", amoswap.w, R);
   INSTPAT("00000?? ????? ????? 010 ????? 01011 11", amoadd.w , R,
           word_t t = Mr(src1, 4); Mw(src1, 4, t + src2); R(rd) = SEXT(t, 32););
   INSTPAT("00100?? ????? ????? 010 ????? 01011 11", amoxor.w , R,

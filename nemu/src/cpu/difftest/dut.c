@@ -63,9 +63,16 @@ void difftest_skip_dut(int nr_ref, int nr_dut) {
 void init_difftest(char *ref_so_file, long img_size, int port) {
   assert(ref_so_file != NULL);
 
+  printf("ref_so_file: %s\n", ref_so_file);
   void *handle;
-  handle = dlopen(ref_so_file, RTLD_LAZY);
+  //handle = dlopen(ref_so_file, RTLD_LAZY);
+  handle = dlopen("/home/jai/ysyx-workbench/nemu/tools/mini-rv32ima-diff/build/riscv32-miniRV32ima.so", RTLD_LAZY);
   assert(handle);
+  // if((handle = dlopen("/home/jai/ysyx-workbench/nemu/tools/mini-rv32ima-diff/build/riscv32-miniRV32ima.so", RTLD_NOW)) == NULL) {
+  //       printf("dlopen - %s\n", dlerror());
+  //       exit(-1);
+  // }
+
 
   ref_difftest_memcpy = dlsym(handle, "difftest_memcpy");
   assert(ref_difftest_memcpy);

@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "common.h"
+#include "debug.h"
 #include "local-include/reg.h"
 #include "local-include/csr.h"
 
@@ -67,7 +68,9 @@ word_t isa_reg_str2val(const char *s, bool *success) {
 // opf programming video? 
 // the structure like &(p1->p2.p3.p4) has a minimum number of instructions?
 static vaddr_t *csr_reg(word_t imm) {
-    switch (imm) {
+    word_t imm_12bit = imm & 0x00000fff;
+    //Log("imm_12bit: %d", imm_12bit);
+    switch (imm_12bit) {
         // M-mode CSR
     case CSR_MSTATUS:       return &(cpu.csr.mstatus);
     case CSR_MEDELEG:       return &(cpu.csr.medeleg);
@@ -81,6 +84,18 @@ static vaddr_t *csr_reg(word_t imm) {
     case CSR_MIP:           return &(cpu.csr.mip);
     case CSR_MCYCLE:        return &(cpu.csr.mcycle);
     //case CSR_MINSTRET:      return &(cpu.csr.minstret); 
+    case CSR_MVENDORID:     return &(cpu.csr.mvendorid); //rval = 0xff0ff100; break;
+    case CSR_MISA:          return &(cpu.csr.misa);
+    case CSR_PMPADDR0:      return &(cpu.csr.pmpaddr0);
+    case CSR_PMPCFG0:       return &(cpu.csr.pmpcfg0);
+    case CSR_MARCHID:       return &(cpu.csr.marchid);
+    case CSR_MIMPID:        return &(cpu.csr.mimpid);
+    case CSR_MHARTID:       return &(cpu.csr.mhartid);
+                         //case 0x3B0: rval = 0; break; //pmpaddr0                          
+                         //case 0x3a0: rval = 0; break; //pmpcfg0
+                         //case 0xf12: rval = 0x00000000; break; //marchid
+                         //case 0xf13: rval = 0x00000000; break; //mimpid
+                         //case 0xf14: rval = 0x00000000; break; //mhartid
 
     // S-mode CSR
     case CSR_SSTATUS:       return &(cpu.csr.sstatus);
@@ -90,7 +105,8 @@ static vaddr_t *csr_reg(word_t imm) {
     case CSR_SCAUSE:        return &(cpu.csr.scause);
     case CSR_SATP:          return &(cpu.csr.satp);
 
-    default: panic("unkwon csr.");
+    default: panic("unkwon csr: %d", imm);
+
     } 
 }
 

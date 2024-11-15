@@ -3,7 +3,9 @@
 
 #include <common.h>
 
+// CSR-M-mode register
 #define CSR_MSTATUS     0x300
+#define CSR_MISA        0x301
 #define CSR_MEDELEG     0x302
 #define CSR_MIDELEG     0x303
 #define CSR_MIE         0x304
@@ -15,7 +17,16 @@
 #define CSR_MIP         0x344
 #define CSR_MCYCLE      0xb00
 #define CSR_MINSTRET    0xb02
+#define CSR_PMPCFG0     0x3a0
+#define CSR_PMPADDR0    0x3b0
 
+#define CSR_MVENDORID   0x0f11
+#define CSR_MARCHID     0x0f12
+#define CSR_MIMPID      0x0f13
+#define CSR_MHARTID     0x0f14
+
+
+// CSR-S-mode register
 #define CSR_SSTATUS     0x100
 #define CSR_STVEC       0x105
 #define CSR_SSCRATCH    0x140

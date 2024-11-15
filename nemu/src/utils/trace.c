@@ -38,7 +38,7 @@ void trace_inst(vaddr_t pc, uint32_t inst) {
     }
 }
 
-IFDEF(CONFIG_ITRACE, {
+//IFDEF(CONFIG_ITRACE,
 void display_inst() {    
     if (cur_inst == 0) {
         return;
@@ -63,7 +63,7 @@ void display_inst() {
         printf(ANSI_NONE);
     }
 }
-})
+//)
 
 
 // ----------- mtrace -----------
@@ -206,24 +206,24 @@ int find_symbol_func(vaddr_t target, bool is_call) {
 }
 
 void parse_elf(const char *elf_file) {
-   if (!elf_file) {
-       return;
-   }
+    if (!elf_file) {
+        return;
+    }
+    
+    printf("elf_file:%s\n", elf_file);
+    int fd = open(elf_file, O_RDONLY|O_SYNC);
+    Assert(fd != -1, "elf_file: %s open error", elf_file);
 
-   printf("elf_file:%s\n", elf_file);
-   int fd = open(elf_file, O_RDONLY|O_SYNC);
-   Assert(fd != -1, "elf_file: %s open error", elf_file);
+    parse_elf_header(fd, elf_file);
 
-   parse_elf_header(fd, elf_file);
+    Elf32_Shdr sh[eh.e_shentsize * eh.e_shnum];
+    get_section_header(fd, sh);
 
-   Elf32_Shdr sh[eh.e_shentsize * eh.e_shnum];
-   get_section_header(fd, sh);
+    get_symbols(fd, sh);
 
-   get_symbols(fd, sh);
+    //init_tail_rec_list();
 
-   //init_tail_rec_list();
-
-   close(fd);
+    close(fd);
 }
 
 // ----------- ftrace -----------
@@ -250,9 +250,9 @@ void ftrace_func_call(vaddr_t pc, vaddr_t target, bool is_tail) {
 void ftrace_func_ret(vaddr_t pc) {
     if (!ftrace_tab) return;
 
-   int i = find_symbol_func(pc, false);
-   printf(FMT_WORD ":%*sret [%s]\n",
-   //log_write(FMT_WORD ":%*sret [%s]\n",
+    int i = find_symbol_func(pc, false);
+    printf(FMT_WORD ":%*sret [%s]\n",
+           //log_write(FMT_WORD ":%*sret [%s]\n",
            pc,
            CALL_DEPTH, " ",
            //call_depth, " ",

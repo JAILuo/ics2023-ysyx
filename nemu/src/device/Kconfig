@@ -69,7 +69,7 @@ menuconfig HAS_PLIC
 if HAS_PLIC
 config PLIC_ADDRESS
   hex "base address of PLIC"
-  default 0x3c000000
+  default 0xc0000000
 endif # HAS_PLIC
 
 menuconfig HAS_KEYBOARD

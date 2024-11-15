@@ -13,7 +13,9 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+#include "common.h"
 #include "isa-def.h"
+#include "local-include/csr.h"
 #include <isa.h>
 #include <memory/paddr.h>
 #include <stdbool.h>
@@ -38,10 +40,12 @@ static void restart() {
   cpu.gpr[0] = 0;
   
   /* initialize mstatus */
-  // MPP: bit[12:11]MPP: 3 
   cpu.csr.mstatus = MUXDEF(CONFIG_RV64, 0xa00001800, 0x00001800);
   cpu.priv = PRIV_MODE_M;
   cpu.INTR = 0;
+
+  word_t satp = 0;
+  csr_write(CSR_SATP, satp);
 
   init_clint();
 }

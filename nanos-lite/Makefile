@@ -4,9 +4,10 @@ RAMDISK_FILE = build/ramdisk.img
 NAME = nanos-lite
 SRCS = $(shell find -L ./src/ -name "*.c" -o -name "*.cpp" -o -name "*.S")
 
-ifeq ($(ARCH),)
-export ARCH := riscv32-nemu
-endif
+# Bugs?
+# ifeq ($(ARCH),)
+# export ARCH := riscv32-nemu
+# endif
 
 include $(AM_HOME)/Makefile
 

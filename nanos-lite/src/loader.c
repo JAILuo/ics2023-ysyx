@@ -115,10 +115,10 @@ void context_kload(PCB *pcb, void (*entry)(void *), void *arg) {
         .end = pcb->stack + STACK_SIZE
     };
     pcb->cp = kcontext(stack, entry, arg);
-    Log("kernel context: %p (a0=%p, sp=%p)",
-        pcb->cp,
-        (void *)pcb->cp->GPRx,
-        (void *)pcb->cp->gpr[2]);
+    // Log("kernel context: %p (a0=%p, sp=%p)",
+    //     pcb->cp,
+    //     (void *)pcb->cp->GPRx,
+    //     (void *)pcb->cp->gpr[2]);
 }
 
 static size_t len_varargs(char *const varargs[]) {
@@ -241,8 +241,8 @@ void context_uload(PCB *pcb, const char *filename, char *const argv[], char *con
             new_user_stack_top + (PGSIZE * i), 
             PTE_R | PTE_W);
     }
-    Log("user context: %p (a0=%p, sp=%p)", 
-        pcb->cp,
-        (void *)pcb->cp->GPRx,
-        (void *)pcb->cp->gpr[2]);
+    // Log("user context: %p (a0=%p, sp=%p)", 
+    //     pcb->cp,
+    //     (void *)pcb->cp->GPRx,
+    //     (void *)pcb->cp->gpr[2]);
 }

@@ -27,7 +27,7 @@ void update_clint() {
         csr_write(CSR_MIP, mip.value);
 
        // For testing, the hardware also writes mie here,
-       // but this is actually a software (OS) task
+       // but this is actually software (OS) task
         mie.mtie = 1;
         csr_write(CSR_MIE, mie.value);
 
