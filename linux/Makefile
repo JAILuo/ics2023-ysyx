@@ -15,7 +15,7 @@ IMAGE = $(NEMU_HOME)/../linux/buildroot/output/images/Image
 
 
 #NEMUFLAGS += -l $(shell dirname $(IMAGE).elf)/nemu-log.txt
-#NEMUFLAGS += -b
+NEMUFLAGS += -b
 NEMUFLAGS += -t $(DTB_FILE)
 
 buildroot:
