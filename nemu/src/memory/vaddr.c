@@ -16,9 +16,6 @@
 #include <isa.h>
 #include <memory/paddr.h>
 
-#define NO_MMU
-
-#ifndef NO_MMU
 word_t vaddr_ifetch(vaddr_t addr, int len) {
     switch (isa_mmu_check(addr, len ,MEM_TYPE_IFETCH)) {
         case MMU_DIRECT: return paddr_read(addr, len);
@@ -46,16 +43,3 @@ void vaddr_write(vaddr_t addr, int len, word_t data) {
         default: panic("unknown isa_mmu_check type");
     }
 }
-#else 
-word_t vaddr_ifetch(vaddr_t addr, int len) {
-  return paddr_read(addr, len);
-}
-
-word_t vaddr_read(vaddr_t addr, int len) {
-  return paddr_read(addr, len);
-}
-
-void vaddr_write(vaddr_t addr, int len, word_t data) {
-  paddr_write(addr, len, data);
-}
-#endif

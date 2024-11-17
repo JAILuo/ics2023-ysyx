@@ -61,8 +61,16 @@ static word_t mret_func(void) {
     cpu.priv = mstatus_tmp.mpp;
     csr_write(CSR_MSTATUS, mstatus_tmp.value);
     
-    return cpu.csr.mepc;
+    // mcause_t mcause_tmp = {.value = csr_read(CSR_MCAUSE)};
+    // bool is_intr = mcause_tmp.intr;
+
+    // if (!is_intr) {
+    //     return cpu.csr.mepc - 4;
+    // } else {
+         return cpu.csr.mepc;
+    // }
 }
+
 
 static word_t sret_func(void) {
     sstatus_t sstatus_tmp = {.value = csr_read(CSR_SSTATUS)};
@@ -223,7 +231,8 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? ??? ????? 00101 11", auipc  , U, R(rd) = s->pc + imm);
 
   /* system */
-  INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
+  INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, 
+          isa_raise_intr(3, s->pc);/*NEMUTRAP(s->pc, R(10)) */ ); // R(10) is $a0
   
   /* CSR */
   // TODO: the following instructions need to be executed in M-mode?
@@ -313,17 +322,17 @@ static int decode_exec(Decode *s) {
   // 00010   aq rl 00000 rs1       010    rd      0101111
   INSTPAT("00010?? 00000 ????? 010 ????? 01011 11", lr.w   , R, 
           cpu.reserved_addr = src1;
-          printf("now pc: %x\n", cpu.pc);
-          printf("[lr.w] reserved_addr: %x\n", cpu.reserved_addr);
+          //printf("now pc: %x\n", cpu.pc);
+          //printf("[lr.w] reserved_addr: %x\n", cpu.reserved_addr);
           //R(rd) = SEXT(Mr(src1 + imm, 4), 32);
           R(rd) = SEXT(Mr(src1, 4), 32);
           cpu.lr_valid = true;
           ); 
   INSTPAT("00011?? ????? ????? 010 ????? 01011 11", sc.w   , R,
           int success = cpu.lr_valid && (cpu.reserved_addr == src1);
-          printf("now pc: %x\n", cpu.pc);
-          printf("[sc.w] reserved_addr: %x  src1: %x  vaild: %d  success: %d\n",
-                 cpu.reserved_addr, src1, cpu.lr_valid, success);
+          //printf("now pc: %x\n", cpu.pc);
+          //printf("[sc.w] reserved_addr: %x  src1: %x  vaild: %d  success: %d\n",
+          //       cpu.reserved_addr, src1, cpu.lr_valid, success);
           if (success) {
             Mw(src1, 4, src2); R(rd) = 0;
             //printf("success...........\n");

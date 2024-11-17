@@ -120,18 +120,24 @@ static void update_status(word_t NO, vaddr_t epc, bool is_delegate_to_s) {
 // ECALL
 word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     bool is_intr = ((mcause_t)NO).intr;
-    //printf("is_intr:%d\n", is_intr);
+
+    //Log("raise, NO: %d  epc: %x", NO, epc);
 
     bool is_delegate_to_s = cpu.priv <= PRIV_MODE_S && 
                 (is_intr ? BIT(csr_read(CSR_MIDELEG), NO) : BIT(csr_read(CSR_MEDELEG), NO));
     //printf("priv:%d  deleg:%d\n", cpu.priv, is_delegate_to_s);
 
     update_status(NO, epc, is_delegate_to_s);
+    
+    // if (!is_intr) {
+    //     epc += 4;
+    //     csr_write(CSR_MEPC, epc);
+    // }
 
     if (is_delegate_to_s) {
         return cpu.csr.stvec;
     } else {
-        return cpu.csr.mtvec; 
+        return cpu.csr.mtvec - 4; 
     }
 }
 

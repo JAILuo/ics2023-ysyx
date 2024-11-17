@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include "../local-include/csr.h"
 
-#define CLINT_MSIP     (0x0000 / sizeof(clint_base[0])) 
 #define CLINT_MTIMECMP (0x4000 / sizeof(clint_base[0]))
 #define CLINT_MTIME    (0xBFF8 / sizeof(clint_base[0]))
 #define TIMEBASE 1000000ul
@@ -46,10 +45,10 @@ static void trigger_timer_interrupt() {
     };
     csr_write(CSR_MIP, mip.value);
 
-    mie_t mie = {
-        .mtie = (clint_base[CLINT_MTIME] >= clint_base[CLINT_MTIMECMP])
-    };
-    csr_write(CSR_MIE, mie.value);
+    // mie_t mie = {
+    //     .mtie = (clint_base[CLINT_MTIME] >= clint_base[CLINT_MTIMECMP])
+    // };
+    // csr_write(CSR_MIE, mie.value);
 }
 
 // static void trigger_software_interrupt() {
@@ -67,6 +66,8 @@ static void trigger_timer_interrupt() {
 void update_clint() {
     uint64_t uptime = get_time();
     clint_base[CLINT_MTIME] = uptime / US_PERCYCLE;
+    //Log("uptime: %ld  CLINT_MTIME: %d  CLINT_MTIMECMP: %d",
+    //    uptime, clint_base[CLINT_MTIME], clint_base[CLINT_MTIMECMP]);
 
     trigger_timer_interrupt();
     //trigger_software_interrupt();
@@ -76,6 +77,7 @@ void update_clint() {
 
 static void clint_io_handler(uint32_t offset, int len, bool is_write) {
     update_clint();
+    // TODO: add offset access some basic register
 }
 
 void init_clint(void) {

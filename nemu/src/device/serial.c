@@ -34,14 +34,6 @@
 
 static uint8_t *serial_base = NULL;
 
-// #define FIFO_SIZE 16
-// static uint8_t tx_fifo[FIFO_SIZE];
-// static uint8_t rx_fifo[FIFO_SIZE];
-// static int tx_fifo_head = 0;
-// static int tx_fifo_tail = 0;
-// static int rx_fifo_head = 0;
-// static int rx_fifo_tail = 0;
-
 static void serial_putc(char ch) {
   MUXDEF(CONFIG_TARGET_AM, putch(ch), putc(ch, stderr));
 }
@@ -52,15 +44,12 @@ static char serial_getc(void) {
 
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {
     assert(len == 1);
-    //printf("offset:%d\n\n", offset);
     switch (offset) {
-        /* We bind the serial port with the host stderr in NEMU. */
+    /* We bind the serial port with the host stderr in NEMU. */
     case CH_OFFSET: // Receiver buffer reg and Transmit Holding Reg
         if (is_write) { // THR
-            //serial_putc(serial_base[REG_THR]);
-            //serial_base[REG_LSR] &= ~(1 << 5);
             serial_putc(serial_base[REG_THR]);
-            serial_base[REG_LSR] = 0x60; // 设置LSR为0x60，表示可以发送数据
+            serial_base[REG_LSR] = 0x60; // bit6: transmit empty	 bit7: transmit holding empty
         } else { // RBR
             serial_base[REG_RBR] = serial_getc();
             serial_base[REG_LSR] |= (1 << 0);
@@ -71,10 +60,10 @@ static void serial_io_handler(uint32_t offset, int len, bool is_write) {
         serial_base[REG_IER] = 0;
         break;
     case 2: // FIFO control Reg and Interrupt Status Reg
-        serial_base[REG_FCR] &= ~(1 << 0);
+        serial_base[REG_FCR] &= ~(1 << 0); // bit 0: FIFO enable
         break;
     case 3: // Line Control Reg
-        serial_base[REG_LCR] |= ((1 << 0) | (1 << 1));
+        serial_base[REG_LCR] |= ((1 << 0) | (1 << 1)); // 8-bits
         break;
     case 4: // Modem Control Reg
         serial_base[REG_MCR] = 0;
@@ -93,6 +82,14 @@ static void serial_io_handler(uint32_t offset, int len, bool is_write) {
     default: panic("do not support offset = %d", offset);
     }
 }
+
+// #define FIFO_SIZE 16
+// static uint8_t tx_fifo[FIFO_SIZE];
+// static uint8_t rx_fifo[FIFO_SIZE];
+// static int tx_fifo_head = 0;
+// static int tx_fifo_tail = 0;
+// static int rx_fifo_head = 0;
+// static int rx_fifo_tail = 0;
 
 // static void serial_putc(char ch) {
 //     if (tx_fifo_head != FIFO_SIZE) {
@@ -247,7 +244,7 @@ void uart8250_init(void) {
 }
 
 void init_serial() {
-    uart8250_init();
+  uart8250_init();
 #ifdef CONFIG_HAS_PORT_IO
   add_pio_map ("serial", CONFIG_SERIAL_PORT, serial_base, 8, serial_io_handler);
 #else
