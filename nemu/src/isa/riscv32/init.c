@@ -47,6 +47,11 @@ static void restart() {
   word_t satp = 0;
   csr_write(CSR_SATP, satp);
 
+  csr_write(CSR_MISA, 0x40140101); //0x40401101
+  csr_write(CSR_MHARTID, 0);
+  csr_write(CSR_MIMPID, 0);
+  csr_write(CSR_MARCHID, 0);
+
   init_clint();
 }
 
@@ -57,3 +62,4 @@ void init_isa() {
   /* Initialize this virtual computer system. */
   restart();
 }
+

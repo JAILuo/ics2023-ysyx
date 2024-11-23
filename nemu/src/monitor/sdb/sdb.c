@@ -34,6 +34,7 @@
 #include "utils.h"
 #include <memory/vaddr.h>
 #include <debug.h>
+#include <cpu/ifetch.h>
 
 static int is_batch_mode = false;
 
@@ -215,6 +216,26 @@ static int cmd_d(char *args) {
     return 0;
 }
 
+// int cmd_i(char *args) {
+//     char *pc_string = strtok(args, " ");
+//     if (pc_string == NULL) {
+//         printf("Usage: i expr\n");
+//         return 0;
+//     }
+//     word_t pc = strtol(pc_string, NULL, 10);
+//     word_t inst_val = inst_fetch(&pc, 4);
+//     //printf("pc: " FMT_WORD "inst_val: " FMT_WORD "\n", pc, inst_val);
+//     void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
+// 
+//     char *p;
+//     char buf[128] = {0};
+//     p = buf;
+//     disassemble(p, sizeof(buf), pc, (uint8_t *)&inst_val, 4); 
+//     printf("test: %s\n", p);
+// 
+//     return 0;
+// }
+
 static int cmd_help(char *args);
 
 static struct {
@@ -231,6 +252,7 @@ static struct {
   { "p", "Display the value of an expression", cmd_p},
   { "w", "Pause the program when then expression expr changes", cmd_w},
   { "d", "Delete the the N watchpoint", cmd_d},
+  //{ "i", "pc->inst_val", cmd_i},
 
   /* TODO: Add more commands */
 
@@ -353,3 +375,4 @@ void init_sdb() {
   /* Initialize the watchpoint pool. */
   init_wp_pool();
 }
+

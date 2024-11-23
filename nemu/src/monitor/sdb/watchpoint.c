@@ -33,7 +33,6 @@ typedef struct watchpoint {
   struct watchpoint *next;
   char expr[32];
   int old_result;
-
 } WP;
 
 static WP wp_pool[NR_WP] = {};
@@ -152,3 +151,4 @@ void display_wp(void) {
         cur = cur->next;
     }
 }
+

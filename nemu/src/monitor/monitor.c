@@ -97,7 +97,7 @@ static void load_dtb() {
     Log("The dtb_file is %s, size = %ld", dtb_file, dtb_size);
 
     fseek(fp, 0, SEEK_SET);
-    long dtb_ptr = CONFIG_MSIZE - dtb_size - sizeof(riscv32_CPU_state);
+    long dtb_ptr = CONFIG_MSIZE - dtb_size;
     int ret = fread(guest_to_host(RESET_VECTOR + dtb_ptr), dtb_size, 1, fp);
     assert(ret == 1);
 
@@ -208,3 +208,4 @@ void am_init_monitor() {
   welcome();
 }
 #endif
+

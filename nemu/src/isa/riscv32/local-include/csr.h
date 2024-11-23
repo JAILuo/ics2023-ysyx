@@ -3,6 +3,8 @@
 
 #include <common.h>
 
+#define CSR_CYCLE       0xC00
+
 // CSR-M-mode register
 #define CSR_MSTATUS     0x300
 #define CSR_MISA        0x301
@@ -33,6 +35,8 @@
 #define CSR_SEPC        0x141
 #define CSR_SCAUSE      0x142
 #define CSR_SATP        0x180
+#define CSR_SIE         0x104
+#define CSR_SIP         0x144
 
 
 /**
@@ -195,7 +199,25 @@ typedef union mie_ {
     word_t value;
 } mie_t;
 
+typedef union mtvec_ {
+    struct {
+#ifdef CONFIG_RV64
+        word_t base : 62;
+#else
+        word_t base : 30;
+#endif
+        word_t mode : 2;
+    };
+    word_t value;
+} mtvec_t;
+
 word_t csr_read(uint16_t csr_num);
 void csr_write(uint16_t csr_num, word_t data);
 
+
+void irq_enable(void);
+
+void irq_disable(void);
+
 #endif
+

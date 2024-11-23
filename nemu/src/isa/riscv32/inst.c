@@ -37,14 +37,14 @@ enum {
   TYPE_N, // none
 };
 
-static word_t ecall_func(word_t epc) {
+static word_t ecall_func(word_t epc, word_t rd) {
     int excp_code;
     switch (cpu.priv) {
     case PRIV_MODE_M: excp_code = EXCP_M_CALL; break;
     case PRIV_MODE_U: excp_code = EXCP_U_CALL; break;
     default: panic("privi: %d not implement.", cpu.priv);
     }
-    return isa_raise_intr(excp_code, epc);
+    return isa_raise_intr(excp_code, epc, rd);
 } 
 
 //TODO: need to support complete mcause
@@ -60,15 +60,8 @@ static word_t mret_func(void) {
     mstatus_tmp.mpie = 1;
     cpu.priv = mstatus_tmp.mpp;
     csr_write(CSR_MSTATUS, mstatus_tmp.value);
-    
-    // mcause_t mcause_tmp = {.value = csr_read(CSR_MCAUSE)};
-    // bool is_intr = mcause_tmp.intr;
 
-    // if (!is_intr) {
-    //     return cpu.csr.mepc - 4;
-    // } else {
-         return cpu.csr.mepc;
-    // }
+    return cpu.csr.mepc;
 }
 
 
@@ -87,6 +80,12 @@ static word_t sret_func(void) {
     return cpu.csr.sepc;
 }
 
+
+// static void wfi_func() {
+//     mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
+//     mstatus_tmp.mie = 1;
+//     csr_write(CSR_MSTATUS, mstatus_tmp.value);
+// }
 
 /** 
  * you may forget add sext for your instruction
@@ -232,57 +231,58 @@ static int decode_exec(Decode *s) {
 
   /* system */
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, 
-          isa_raise_intr(3, s->pc);/*NEMUTRAP(s->pc, R(10)) */ ); // R(10) is $a0
+           /* isa_raise_intr(3, s->dnpc, R(rd)); */ 
+          /*NEMUTRAP(s->pc, R(10));*/ ); // R(10) is $a0
   
   /* CSR */
   // TODO: the following instructions need to be executed in M-mode?
   // need to consider the CSR level and cpu.priv
   INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I,
           if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
           } else {
             volatile word_t t = csr_read(imm); csr_write(imm, src1); R(rd) = t;
           });
   INSTPAT("??????? ????? ????? 101 ????? 11100 11", csrrwi , I,
           if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
           } else {
             R(rd) = csr_read(imm); 
             csr_write(imm, ZEXT(imm, 32));
           });
   INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, 
           if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
           } else {
             volatile word_t t = csr_read(imm); csr_write(imm, t | src1); R(rd) = t;
           });
   INSTPAT("??????? ????? ????? 110 ????? 11100 11", csrrsi , I, 
           if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
           } else {
             volatile word_t t = csr_read(imm); csr_write(imm, t | ZEXT(imm, 32)); R(rd) = t;
           });
   INSTPAT("??????? ????? ????? 011 ????? 11100 11", csrrc  , I, 
           if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
           } else {
             volatile word_t t = csr_read(imm); csr_write(imm, t & ~src1); R(rd) = t;
           });
   INSTPAT("??????? ????? ????? 111 ????? 11100 11", csrrci , I, 
           if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc);
+            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
           } else {
             volatile word_t t = csr_read(imm); csr_write(imm, t & ~(ZEXT(imm, 32))); R(rd) = t;
           });
 
   
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall     , I,
-          s->dnpc = ecall_func(s->pc););
+          s->dnpc = ecall_func(s->pc, R(rd)););
   INSTPAT("0011000 00010 00000 000 00000 11100 11", mret      , R,
           s->dnpc = mret_func(););
   INSTPAT("0001000 00010 00000 000 00000 11100 11", sret      , R,
           s->dnpc = sret_func(););
-  INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R);
+  INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R,);
   INSTPAT("0000??? ????? 00000 000 00000 00011 11", fence     , I);
   INSTPAT("0000000 00000 00000 001 00000 00011 11", fence.i   , I);
   INSTPAT("0001001 ????? ????? 000 00000 11100 11", sfence.vma, R);
@@ -351,32 +351,60 @@ static int decode_exec(Decode *s) {
          );
 
   // In single core, locking is achieved by turning off the interrupt(mstatus.mie)
-  INSTPAT("00001?? ????? ????? 010 ????? 01011 11", amoswap.w, R);
+  INSTPAT("00001?? ????? ????? 010 ????? 01011 11", amoswap.w, R,
+          irq_disable();
+          volatile word_t t = Mr(src1, 4); Mw(src1, 4, src2); R(rd) = SEXT(t, 32);
+          irq_enable();
+          );
   INSTPAT("00000?? ????? ????? 010 ????? 01011 11", amoadd.w , R,
-          word_t t = Mr(src1, 4); Mw(src1, 4, t + src2); R(rd) = SEXT(t, 32););
+          //irq_disable();
+          volatile word_t t = Mr(src1, 4); Mw(src1, 4, t + src2); R(rd) = SEXT(t, 32);
+          //irq_enable();
+          );
   INSTPAT("00100?? ????? ????? 010 ????? 01011 11", amoxor.w , R,
-          word_t t = Mr(src1, 4); Mw(src1, 4, t ^ src2); R(rd) = SEXT(t, 32););
+          //irq_disable();
+          volatile word_t t = Mr(src1, 4); Mw(src1, 4, t ^ src2); R(rd) = SEXT(t, 32);
+          //irq_enable();
+          );
   INSTPAT("01100?? ????? ????? 010 ????? 01011 11", amoand.w , R,
-          word_t t = Mr(src1, 4); Mw(src1, 4, t & src2); R(rd) = SEXT(t, 32););
+          //irq_disable();
+          volatile word_t t = Mr(src1, 4); Mw(src1, 4, t & src2); R(rd) = SEXT(t, 32);
+          //irq_enable();
+          );
   INSTPAT("01000?? ????? ????? 010 ????? 01011 11", amoor.w  , R,
-          word_t t = Mr(src1, 4); Mw(src1, 4, t | src2); R(rd) = SEXT(t, 32););
+          //irq_disable();
+          volatile word_t t = Mr(src1, 4); Mw(src1, 4, t | src2); R(rd) = SEXT(t, 32);
+          //irq_enable();
+          );
 
   INSTPAT("10000?? ????? ????? 010 ????? 01011 11", amomin.w , R,
-          word_t t = Mr(src1, 4);
+          //irq_disable();
+          volatile word_t t = Mr(src1, 4);
           Mw(src1, 4, (int32_t)t < (int32_t)src2 ? t : src2);
-          R(rd) = SEXT(t, 32););
+          R(rd) = SEXT(t, 32);
+          //irq_enable();
+          );
   INSTPAT("10100?? ????? ????? 010 ????? 01011 11", amomax.w , R,
-          word_t t = Mr(src1, 4);
+          //irq_disable();
+          volatile word_t t = Mr(src1, 4);
           Mw(src1, 4, (int32_t)t > (int32_t)src2 ? t : src2);
-          R(rd) = SEXT(t, 32););
+          R(rd) = SEXT(t, 32);
+          //irq_enable();
+          );
   INSTPAT("11000?? ????? ????? 010 ????? 01011 11", amominu.w, R,
-          word_t t = Mr(src1, 4);
+          //irq_disable();
+          volatile word_t t = Mr(src1, 4);
           Mw(src1, 4, (uint32_t)t < (uint32_t)src2 ? t : src2);
-          R(rd) = SEXT(t, 32););
+          R(rd) = SEXT(t, 32);
+          //irq_enable();
+          );
   INSTPAT("11100?? ????? ????? 010 ????? 01011 11", amomaxu.w, R,
-          word_t t = Mr(src1, 4);
+          //irq_disable();
+          volatile word_t t = Mr(src1, 4);
           Mw(src1, 4, (uint32_t)t > (uint32_t)src2 ? t : src2);
-          R(rd) = SEXT(t, 32););
+          R(rd) = SEXT(t, 32);
+          //irq_enable();
+          );
 
   /* add more... */
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
@@ -393,3 +421,4 @@ int isa_exec_once(Decode *s) {
     trace_inst(s->pc, s->isa.inst.val);
     return decode_exec(s);
 }
+

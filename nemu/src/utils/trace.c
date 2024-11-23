@@ -1,5 +1,4 @@
 #include <macro.h>
-#include <device/map.h>
 #include <utils.h>
 #include <common.h>
 #include <isa.h>
@@ -38,7 +37,6 @@ void trace_inst(vaddr_t pc, uint32_t inst) {
     }
 }
 
-IFDEF(CONFIG_ITRACE,
 void display_inst() {    
     if (cur_inst == 0) {
         return;
@@ -58,13 +56,12 @@ void display_inst() {
                 cpu.pc == itrace_buf[i].pc ? " --> " : "     ",
                 itrace_buf[i].pc,
                 itrace_buf[i].inst);
-        disassemble(p, sizeof(buf), itrace_buf[i].pc, (uint8_t *)&itrace_buf[i].inst, 4);
+        IFDEF(CONFIG_ITRACE,
+              disassemble(p, sizeof(buf), itrace_buf[i].pc, (uint8_t *)&itrace_buf[i].inst, 4););
         puts(buf);
         printf(ANSI_NONE);
     }
 }
-)
-
 
 // ----------- mtrace -----------
 void display_pread(paddr_t addr, int len) {
@@ -270,5 +267,4 @@ void ftrace_func_ret(vaddr_t pc) {
 	}
     */
 }
-
 

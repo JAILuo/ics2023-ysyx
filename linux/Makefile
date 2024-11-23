@@ -12,11 +12,12 @@ ARCHIVE   = $(WORK_DIR)/build/$(NAME)-$(ARCH).a
 ISA = riscv32
 DTB_FILE = $(NEMU_HOME)/src/isa/riscv32/dts/nemu.dtb
 IMAGE = $(NEMU_HOME)/../linux/buildroot/output/images/Image
+ELF = /home/jai/ysyx-workbench/linux/buildroot/output/images/vmlinux
 
-
-#NEMUFLAGS += -l $(shell dirname $(IMAGE).elf)/nemu-log.txt
+NEMUFLAGS += -l $(shell dirname $(IMAGE).elf)/nemu-log.txt
 NEMUFLAGS += -b
 NEMUFLAGS += -t $(DTB_FILE)
+NEMUFLAGS += -e $(ELF)
 
 buildroot:
 	git clone https://github.com/cnlohr/buildroot --recurse-submodules --depth 1

@@ -69,6 +69,9 @@ typedef struct {
 
     word_t mtval;
     word_t mcycle;
+#ifndef CONFIG_RV64
+    word_t mcycleh;
+#endif
     word_t medeleg;
     word_t mideleg;
     //word_t minstret;
@@ -87,6 +90,8 @@ typedef struct {
     word_t stvec;
     word_t sstatus;
     word_t scause;
+    word_t sie;
+    word_t sip;
     word_t sscratch;
     // add more...
 } riscv_CPU_csr;
@@ -116,3 +121,4 @@ typedef struct {
 
 
 #endif
+

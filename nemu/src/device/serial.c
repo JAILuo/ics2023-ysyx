@@ -36,11 +36,12 @@ static uint8_t *serial_base = NULL;
 
 static void serial_putc(char ch) {
   MUXDEF(CONFIG_TARGET_AM, putch(ch), putc(ch, stderr));
+  fflush(stderr);
 }
 
-static char serial_getc(void) {
-    return getchar();
-}
+// static char serial_getc(void) {
+//     return getchar();
+// }
 
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {
     assert(len == 1);
@@ -51,7 +52,7 @@ static void serial_io_handler(uint32_t offset, int len, bool is_write) {
             serial_putc(serial_base[REG_THR]);
             serial_base[REG_LSR] = 0x60; // bit6: transmit empty	 bit7: transmit holding empty
         } else { // RBR
-            serial_base[REG_RBR] = serial_getc();
+            //serial_base[REG_RBR] = serial_getc();
             serial_base[REG_LSR] |= (1 << 0);
             //panic("do not support read");
         }
@@ -60,10 +61,10 @@ static void serial_io_handler(uint32_t offset, int len, bool is_write) {
         serial_base[REG_IER] = 0;
         break;
     case 2: // FIFO control Reg and Interrupt Status Reg
-        serial_base[REG_FCR] &= ~(1 << 0); // bit 0: FIFO enable
+        //serial_base[REG_FCR] &= ~(1 << 0); // bit 0: FIFO enable
         break;
     case 3: // Line Control Reg
-        serial_base[REG_LCR] |= ((1 << 0) | (1 << 1)); // 8-bits
+        //serial_base[REG_LCR] |= ((1 << 0) | (1 << 1)); // 8-bits
         break;
     case 4: // Modem Control Reg
         serial_base[REG_MCR] = 0;
@@ -252,3 +253,4 @@ void init_serial() {
 #endif
 
 }
+
