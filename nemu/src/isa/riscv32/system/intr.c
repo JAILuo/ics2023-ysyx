@@ -124,12 +124,13 @@ static void update_status(word_t NO, vaddr_t epc, word_t rd, bool is_delegate_to
 word_t isa_raise_intr(word_t NO, vaddr_t epc, word_t rd) {
     bool is_intr = ((mcause_t)NO).intr;
 
-    //Log("raise, NO: %d  epc: %x  cpu.priv: %d", NO, epc, cpu.priv);
+    //Log("raise, NO: 0x%x epc: 0x%x  cpu.priv: 0x%x", NO, epc, cpu.priv);
     bool is_delegate_to_s = cpu.priv <= PRIV_MODE_S && 
                 (is_intr ? BIT(csr_read(CSR_MIDELEG), NO) : BIT(csr_read(CSR_MEDELEG), NO));
     //printf("priv:%d  deleg:%d\n", cpu.priv, is_delegate_to_s);
 
     update_status(NO, epc, rd, is_delegate_to_s);
+    //Log("raise, NO: 0x%x epc: 0x%x  cpu.priv: 0x%x", NO, epc, cpu.priv);
     
     mtvec_t mtvec = { .value = csr_read(CSR_MTVEC)};
 //     mcause_t mcause = { .value = csr_read(CSR_MCAUSE)};

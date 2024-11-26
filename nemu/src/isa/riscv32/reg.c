@@ -82,8 +82,11 @@ static vaddr_t *csr_reg(word_t imm) {
     case CSR_MCAUSE:        return &(cpu.csr.mcause);
     case CSR_MTVAL:         return &(cpu.csr.mtval);
     case CSR_MIP:           return &(cpu.csr.mip);
+
+    case 313:               return &(cpu.csr.tmp);
     case CSR_MCYCLE:        return &(cpu.csr.mcycle);
     //case CSR_MINSTRET:      return &(cpu.csr.minstret); 
+
     case CSR_MVENDORID:     return &(cpu.csr.mvendorid); //rval = 0xff0ff100; break;
     case CSR_MISA:          return &(cpu.csr.misa);
     case CSR_PMPADDR0:      return &(cpu.csr.pmpaddr0);

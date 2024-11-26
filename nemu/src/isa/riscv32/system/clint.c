@@ -61,13 +61,15 @@ static void trigger_timer_interrupt() {
 
 void update_clint() {
     clint_base[CLINT_MTIME] += TIMEBASE / 10000;
+
+    // why this can't run? endless loop in futex hash table 
     //uint64_t uptime = get_time();
     //clint_base[CLINT_MTIME] = uptime / US_PERCYCLE;
     //Log("uptime: %ld  CLINT_MTIME: %d  CLINT_MTIMECMP: %d",
     //    uptime, clint_base[CLINT_MTIME], clint_base[CLINT_MTIMECMP]);
 
     trigger_timer_interrupt();
-    //cpu.INTR = true;
+    cpu.INTR = true;
 }
 
 // static uint32_t mtimeh = 0;  // 高32位mtime

@@ -96,10 +96,12 @@ static void load_dtb() {
 
     Log("The dtb_file is %s, size = %ld", dtb_file, dtb_size);
 
+    //char *kernel_command_line = "console=hvc0";
     fseek(fp, 0, SEEK_SET);
     long dtb_ptr = CONFIG_MSIZE - dtb_size;
     int ret = fread(guest_to_host(RESET_VECTOR + dtb_ptr), dtb_size, 1, fp);
     assert(ret == 1);
+    //strncpy( (char*)(guest_to_host(RESET_VECTOR + dtb_ptr + 0xc0 )), "console=hvc0", 54 );
 
     cpu.gpr[10] = 0x00; // hart ID
     cpu.gpr[11] = CONFIG_MBASE + dtb_ptr; 

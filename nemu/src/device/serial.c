@@ -15,6 +15,7 @@
 
 #include <utils.h>
 #include <device/map.h>
+#include <device/keyboard.h>
 
 /* http://en.wikibooks.org/wiki/Serial_Programming/8250_UART_Programming */
 // NOTE: this is compatible to 16550
@@ -35,13 +36,31 @@
 static uint8_t *serial_base = NULL;
 
 static void serial_putc(char ch) {
-  MUXDEF(CONFIG_TARGET_AM, putch(ch), putc(ch, stderr));
-  fflush(stderr);
+  //MUXDEF(CONFIG_TARGET_AM, putch(ch), putc(ch, stderr));
+  //fflush(stderr);
+  printf("%c", ch);
+  fflush(stdout);
 }
 
 // static char serial_getc(void) {
 //     return getchar();
 // }
+
+extern uint32_t key_dequeue();
+extern int key_f;
+extern int key_r;
+
+static int serial_getc(void) {
+    // 从键盘队列中获取一个字符
+    uint32_t key = key_dequeue();
+    if (key != NEMU_KEY_NONE) {
+        // 将按键扫描码转换为字符
+        int ch = (key & 0xFF);
+        return ch;
+    }
+    return -1; // 如果队列中没有数据，返回-1
+}
+
 
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {
     assert(len == 1);
@@ -50,35 +69,62 @@ static void serial_io_handler(uint32_t offset, int len, bool is_write) {
     case CH_OFFSET: // Receiver buffer reg and Transmit Holding Reg
         if (is_write) { // THR
             serial_putc(serial_base[REG_THR]);
-            serial_base[REG_LSR] = 0x60; // bit6: transmit empty	 bit7: transmit holding empty
+            serial_base[REG_LSR] = 0xff; // bit6: transmit empty	 bit7: transmit holding empty
         } else { // RBR
-            //serial_base[REG_RBR] = serial_getc();
-            serial_base[REG_LSR] |= (1 << 0);
-            //panic("do not support read");
+            // printf("da08012n3\n");
+            // uint32_t key = key_dequeue();
+            // if (key != NEMU_KEY_NONE) {
+            //     serial_base[REG_RBR] = key;
+            //     serial_base[REG_LSR] |= (1 << 0); // bit0: data ready
+            // } else {
+            //     // 如果没有数据，确保LSR的bit0不被设置
+            //     serial_base[REG_LSR] &= ~(1 << 0);
+            // }
+           printf("serial_base[REG_RBR]: %d\n", serial_base[REG_RBR]);
+            int ch = serial_getc();
+            if (ch != -1) {
+                serial_base[REG_RBR] = ch;
+                serial_base[REG_LSR] |= (1 << 0); // 设置LSR的可读位
+            }
+            serial_base[REG_LSR] = 0xff; // bit6: transmit empty	 bit7: transmit holding empty
         }
         break;
     case 1: // interrupt enable reg
-        serial_base[REG_IER] = 0;
+        serial_base[REG_IER] = 0xff;
         break;
     case 2: // FIFO control Reg and Interrupt Status Reg
         //serial_base[REG_FCR] &= ~(1 << 0); // bit 0: FIFO enable
+        serial_base[REG_FCR] &= 0xff; // bit 0: FIFO enable
         break;
     case 3: // Line Control Reg
         //serial_base[REG_LCR] |= ((1 << 0) | (1 << 1)); // 8-bits
+        serial_base[REG_LCR] |= 0xff;// 8-bits
         break;
     case 4: // Modem Control Reg
-        serial_base[REG_MCR] = 0;
+        //serial_base[REG_MCR] = 0;
+        serial_base[REG_MCR] = 0xff;
         break;
     case 5: // Line Status Reg
         //serial_base[REG_LSR] &= ~((1 << 0) | (1 << 5));
-        serial_base[REG_LSR] |= 0x60; //???????? why hit good trap??
+        // LSR寄存器的读取操作，根据当前的状态返回值
+        // if (!is_write) {
+        //     // bit6: transmit empty, bit7: transmit holding empty
+        //     // 假设TX总是空闲的
+        //     serial_base[REG_LSR] |= 0x60;
+        //     if (key_f != key_r) {
+        //         serial_base[REG_LSR] |= (1 << 0); // 有数据可读，置位bit0
+        //     } else {
+        //         serial_base[REG_LSR] &= ~(1 << 0); // 没有数据可读，清0 bit0
+        //     }
+        // }
+        serial_base[REG_LSR] = 0xff;
         break;
     case 6: // Modem Status Reg
-        serial_base[REG_IER] = 0;
+        serial_base[REG_IER] = 0xff;
         break;
-        serial_base[REG_IER] = 0;
+        serial_base[REG_IER] = 0xff;
     case 7: //scratch
-        serial_base[REG_SCR] = 0;
+        serial_base[REG_SCR] = 0xff;
         break;
     default: panic("do not support offset = %d", offset);
     }
@@ -241,7 +287,7 @@ void uart8250_init(void) {
     serial_base = new_space(8);
     assert(serial_base != NULL);
     memset(serial_base, 0, 8);
-    serial_base[REG_LSR] = 0x60; // Default value with THRE and TEMT set
+    //serial_base[REG_LSR] = 0x60; // Default value with THRE and TEMT set
 }
 
 void init_serial() {
@@ -253,4 +299,3 @@ void init_serial() {
 #endif
 
 }
-

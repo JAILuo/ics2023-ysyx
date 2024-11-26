@@ -282,7 +282,7 @@ static int decode_exec(Decode *s) {
           s->dnpc = mret_func(););
   INSTPAT("0001000 00010 00000 000 00000 11100 11", sret      , R,
           s->dnpc = sret_func(););
-  INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R,);
+  INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R, s->dnpc += 4;);
   INSTPAT("0000??? ????? 00000 000 00000 00011 11", fence     , I);
   INSTPAT("0000000 00000 00000 001 00000 00011 11", fence.i   , I);
   INSTPAT("0001001 ????? ????? 000 00000 11100 11", sfence.vma, R);

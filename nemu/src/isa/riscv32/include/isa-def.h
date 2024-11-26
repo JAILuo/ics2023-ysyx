@@ -67,6 +67,7 @@ typedef struct {
     word_t mtvec;
     word_t mscratch;
 
+    word_t tmp;
     word_t mtval;
     word_t mcycle;
 #ifndef CONFIG_RV64
