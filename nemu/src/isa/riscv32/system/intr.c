@@ -14,6 +14,7 @@
 ***************************************************************************************/
 
 #include "common.h"
+#include "debug.h"
 #include "isa-def.h"
 #include "macro.h"
 #include <isa.h>
@@ -65,11 +66,9 @@ static word_t get_mtval_for_exception(word_t NO, vaddr_t epc, word_t rd) {
             mtval = rd;
             break;
         case EXCP_ILLEGAL_INST:
-            // 对于非法指令异常，获取故障指令的编码
             mtval = epc;
             break;
         default:
-            // 对于不需要更新 mtval 的异常，保持 mtval 为 0
             mtval = 0;
             break;
     }
@@ -80,6 +79,7 @@ static void update_status(word_t NO, vaddr_t epc, word_t rd, bool is_delegate_to
     // 我委托给S模式，要不要把sstatus的同步mstatus？
     //TODO: sync corresponding s-mode/m-mode register 
     if (is_delegate_to_s) {  
+        panic("don't support S-mode");
         sstatus_t sstatus_tmp = {.value = csr_read(CSR_SSTATUS)};  
 
         word_t stval = get_mtval_for_exception(NO, epc, rd);
@@ -87,6 +87,7 @@ static void update_status(word_t NO, vaddr_t epc, word_t rd, bool is_delegate_to
         
         csr_write(CSR_SEPC, epc);
         csr_write(CSR_SCAUSE, NO);
+
         sstatus_tmp.spie = sstatus_tmp.sie;  
         sstatus_tmp.sie = 0;  
         sstatus_tmp.spp = cpu.priv;  
@@ -106,9 +107,11 @@ static void update_status(word_t NO, vaddr_t epc, word_t rd, bool is_delegate_to
 
         csr_write(CSR_MEPC, epc);
         csr_write(CSR_MCAUSE, NO);
+
         mstatus_tmp.mpie = mstatus_tmp.mie;  
         mstatus_tmp.mie = 0;  
         mstatus_tmp.mpp = cpu.priv;  
+        //printf("in ecall, mpp: %d, now must be M-mode  mcause_tmp: %x\n", cpu.priv, NO);
         csr_write(CSR_MSTATUS, mstatus_tmp.value);
 
         cpu.priv = PRIV_MODE_M;  
@@ -120,11 +123,19 @@ static void update_status(word_t NO, vaddr_t epc, word_t rd, bool is_delegate_to
     }  
 }  
 
+static word_t get_trap_pc(word_t xtvec, word_t xcause) {
+    word_t base = (xtvec >> 2) << 2;
+    word_t mode = (xtvec & 0x1); // bit 1 is reserved, don't care.
+    bool is_intr = (xcause >> (sizeof(word_t) * 8 - 1)) == 1;
+    word_t cause_no = ((mcause_t)xcause).code;
+    //TODO: add log
+    return (is_intr && mode == 1) ? (base + (cause_no << 2)) : base;
+}
+
 // ECALL
 word_t isa_raise_intr(word_t NO, vaddr_t epc, word_t rd) {
     bool is_intr = ((mcause_t)NO).intr;
 
-    //Log("raise, NO: 0x%x epc: 0x%x  cpu.priv: 0x%x", NO, epc, cpu.priv);
     bool is_delegate_to_s = cpu.priv <= PRIV_MODE_S && 
                 (is_intr ? BIT(csr_read(CSR_MIDELEG), NO) : BIT(csr_read(CSR_MEDELEG), NO));
     //printf("priv:%d  deleg:%d\n", cpu.priv, is_delegate_to_s);
@@ -133,23 +144,14 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc, word_t rd) {
     //Log("raise, NO: 0x%x epc: 0x%x  cpu.priv: 0x%x", NO, epc, cpu.priv);
     
     mtvec_t mtvec = { .value = csr_read(CSR_MTVEC)};
-//     mcause_t mcause = { .value = csr_read(CSR_MCAUSE)};
-//     bool v_mode = mtvec.mode;
-// 
-//     int offset = (v_mode == 1 && mcause.intr ? mcause.code * 4 : 0); // Vectored MODE
-// 
-//     printf("v_mode: %d  mcause.intr: %d  mcause.code: %d  mtvec: " FMT_WORD"  mtvec.base: " FMT_WORD "\n",
-//            v_mode, mcause.intr, mcause.code, mtvec.value, mtvec.base);
-//     printf("cpu.csr.mtvec: " FMT_WORD "\n" "mtvec.value: " FMT_WORD "\n",
-//            cpu.csr.mtvec, mtvec.value);
+    word_t trap_pc = get_trap_pc(mtvec.value, NO);
 
     if (is_delegate_to_s) {
         // TODO: sync base like mtvec
-        return cpu.csr.stvec;
+        panic("don't support S-mode");
+        return cpu.csr.stvec; 
     } else {
-        // printf("(mtvec.base << 2) + offset: " FMT_WORD "\n", (mtvec.base << 2) + offset);
-        //return (mtvec.base << 2) + offset;
-        return mtvec.value;
+        return trap_pc;
     }
 }
 
@@ -174,72 +176,41 @@ void irq_disable(void) {
 #define IRQ_TIMER 0x80000007
 
 word_t isa_query_intr() {
-    mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
+    mie_t mie = {.value = csr_read(CSR_MIE)};
     mip_t mip = {.value = csr_read(CSR_MIP)};
-    //printf("mip: %d  mstatus.value: %d\n", mip.value, mstatus_tmp.value);
-    //printf("cpu.INTR: %d  mstatus.mie: %d  mip.mtip: %d\n", 
-    //       cpu.INTR, mstatus_tmp.mie, mip.mtip);
-    if (cpu.INTR == true && mstatus_tmp.mie != 0 && mip.mtip != 0) {
-        //printf("mip: %d  mstatus.value: %d\n", mip.value, mstatus_tmp.value);
-        cpu.INTR = false;
-        return IRQ_TIMER;
+
+    // 如果MIE和MIP之间没有共同的位被设置，则没有中断
+    if (!(mie.value & mip.value)) return INTR_EMPTY;
+
+    const int priority[] = {
+        INTR_M_EXTN, INTR_M_SOFT, INTR_M_TIMR,
+        INTR_S_EXTN, INTR_S_SOFT, INTR_S_TIMR,
+    };
+    int nr_irq = ARRLEN(priority);
+
+    const mstatus_t mstatus = {.value = csr_read(CSR_MSTATUS)};
+
+    /**
+     * When running in low-privilege mode (U-mode), 
+     * the global interrupt enable bit of high-privilege mode (such as M-mode) is 
+     * always in the enable state by default, 
+     * that is, the actual value of mstatus.mie is ignored.
+     */
+    bool global_irq_enable = ((cpu.priv == PRIV_MODE_M) && mstatus.mie) ||
+                            (cpu.priv < PRIV_MODE_M);
+
+    for (int i = 0; i < nr_irq; i++) {
+        int irq = priority[i];
+
+        bool mie_irq = (mie.value & (1 << irq)) != 0;
+        bool mip_irq = (mip.value & (1 << irq)) != 0;
+
+        if (global_irq_enable && mie_irq && mip_irq) {
+            mip.value &= ~(1 << irq);
+            csr_write(CSR_MIP, mip.value);
+            //printf("irq: 0x%llx, now cpu.priv: %d\n", irq | INTR_BIT, cpu.priv);
+            return irq | INTR_BIT;
+        }
     }
     return INTR_EMPTY; // ((word_t) -1)
 }
-
-
-//  TODO: need to add mie, mip, m/stvec
-// word_t isa_query_intr() {
-//     const int priority[] = {
-//         INTR_M_EXTN, INTR_M_SOFT, INTR_M_TIMR,
-//         INTR_S_EXTN, INTR_S_SOFT, INTR_S_TIMR,
-//     };
-//     int nr_irq = ARRLEN(priority);
-// 
-//     //mideleg_t mideleg_tmp = (mideleg_t)csr_read(CSR_MIDELEG);
-//     const mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
-//     //printf("mie:%d\n", mstatus_tmp.mie);
-// 
-//     bool global_irq_enable = mstatus_tmp.mie;
-//     // bool enable_irq = global_irq_enable && mie_irq && concrete_mip_ieq;
-//     //printf("global_irq_enable: %d\n", global_irq_enable);
-// 
-//     if (cpu.INTR == true && global_irq_enable == true) {
-//         cpu.INTR = false;
-//         for (int i = 0; i < nr_irq; i++) {
-//             // TODO: the problem now is how to distinguish 3 M-intr
-//             // now the code I wrote is be bound to trigger intr...
-//             // we need a func to judge which intr
-//             int irq = priority[i];
-// 
-//             mie_t mie = {.value = csr_read(CSR_MIE)};
-//             mip_t mip = {.value = csr_read(CSR_MIP)};
-//             //printf("mie: " FMT_WORD "\nmip: " FMT_WORD "\n", mie, mip);
-//             bool mie_irq = (mie.value & (1 << irq)) != 0;
-//             bool mip_irq = (mip.value & (1 << irq)) != 0;
-//             //Log("mie_irq: %d\n", mie_irq);
-//             //Log("mip_irq: %d\n", mip_irq);
-//             
-//             if (mie_irq && mip_irq) {
-//                 //Log("irq_mum:%llx\n", irq | INTR_BIT);
-//                 return irq | INTR_BIT;
-//             }
-// 
-//             // bool deleg = (mideleg_tmp.value & (1 << irq)) != 0;
-//             // bool global_irq_enable = deleg ?
-//             //     ((cpu.priv == PRIV_MODE_S) && mstatus_tmp.sie) || (cpu.priv < PRIV_MODE_S) :
-//             //     ((cpu.priv == PRIV_MODE_M) && mstatus_tmp.mie) || (cpu.priv < PRIV_MODE_M);
-//             // if (mstatus_tmp.mie) {
-//             // 
-//             // }
-//             // //printf("enable:%d\n", global_irq_enable);
-//             //                             
-//             // //printf("priority:%d\n", irq);
-//             // //printf("irq_mum:%llx\n", irq | INTR_BIT);
-//             // if (global_irq_enable) return irq | INTR_BIT;
-//         }
-//     }
-// 
-//     return INTR_EMPTY; // ((word_t) -1)
-// }
-

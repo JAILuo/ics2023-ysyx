@@ -44,6 +44,7 @@ static void restart() {
   cpu.priv = PRIV_MODE_M;
   cpu.INTR = 0;
 
+  /* disable mmu  */
   word_t satp = 0;
   csr_write(CSR_SATP, satp);
 
@@ -52,6 +53,7 @@ static void restart() {
   csr_write(CSR_MIMPID, 0);
   csr_write(CSR_MARCHID, 0);
 
+  irq_disable();
   init_clint();
 }
 

@@ -31,6 +31,16 @@ config SERIAL_INPUT_FIFO
   default n
 endif # HAS_SERIAL
 
+menuconfig HAS_SYSCON
+  bool "Enable syscon"
+  default y
+
+if HAS_SYSCON
+config SYSCON_MMIO
+  hex "MMIO address of the syscon"
+  default 0x11100000
+endif # HAS_SYSCON
+
 menuconfig HAS_TIMER
   bool "Enable timer"
   default y
@@ -51,11 +61,6 @@ menuconfig HAS_CLINT
   default y
 
 if HAS_CLINT
-config CLINT_PORT
-  depends on HAS_PORT_IO
-  hex "Port address of the clint"
-  default 0x20
-
 config CLINT_MMIO
   hex "MMIO address of the clint"
   default 0xb0000020

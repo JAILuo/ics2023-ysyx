@@ -104,7 +104,7 @@ typedef struct {
   int priv;
   bool INTR;
   
-  //RV32A
+  // A-Extension
   bool lr_valid;
   word_t reserved_addr;
 } MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state);

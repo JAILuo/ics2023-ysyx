@@ -1,9 +1,10 @@
+#include "macro.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <utils.h>
 #include <device/map.h>
 
-uint8_t *plic_base = NULL;
+static uint8_t *plic_base = NULL;
 #define PLIC_SIZE (0x10) 
 // random size...
 

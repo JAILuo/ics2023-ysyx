@@ -61,6 +61,7 @@ static word_t mret_func(void) {
     cpu.priv = mstatus_tmp.mpp;
     csr_write(CSR_MSTATUS, mstatus_tmp.value);
 
+    //printf("in mret, now cpu.priv: %d\n", cpu.priv);
     return cpu.csr.mepc;
 }
 
@@ -231,49 +232,49 @@ static int decode_exec(Decode *s) {
 
   /* system */
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, 
-           /* isa_raise_intr(3, s->dnpc, R(rd)); */ 
+           isa_raise_intr(3, s->dnpc, R(rd)); 
           /*NEMUTRAP(s->pc, R(10));*/ ); // R(10) is $a0
   
   /* CSR */
   // TODO: the following instructions need to be executed in M-mode?
   // need to consider the CSR level and cpu.priv
   INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I,
-          if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
-          } else {
-            volatile word_t t = csr_read(imm); csr_write(imm, src1); R(rd) = t;
-          });
+          // if (cpu.priv != PRIV_MODE_M) {
+          //   isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
+          // } else {
+             volatile word_t t = csr_read(imm); csr_write(imm, src1); R(rd) = t; );
+          // });
   INSTPAT("??????? ????? ????? 101 ????? 11100 11", csrrwi , I,
-          if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
-          } else {
-            R(rd) = csr_read(imm); 
-            csr_write(imm, ZEXT(imm, 32));
-          });
+          // if (cpu.priv != PRIV_MODE_M) {
+          //   isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
+          // } else {
+          //   R(rd) = csr_read(imm); 
+             csr_write(imm, ZEXT(imm, 32)); );
+          // });
   INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, 
-          if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
-          } else {
-            volatile word_t t = csr_read(imm); csr_write(imm, t | src1); R(rd) = t;
-          });
+          // if (cpu.priv != PRIV_MODE_M) {
+          //   isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
+          // } else {
+            volatile word_t t = csr_read(imm); csr_write(imm, t | src1); R(rd) = t;);
+          // });
   INSTPAT("??????? ????? ????? 110 ????? 11100 11", csrrsi , I, 
-          if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
-          } else {
-            volatile word_t t = csr_read(imm); csr_write(imm, t | ZEXT(imm, 32)); R(rd) = t;
-          });
+          // if (cpu.priv != PRIV_MODE_M) {
+          //   isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
+          // } else {
+             volatile word_t t = csr_read(imm); csr_write(imm, t | ZEXT(imm, 32)); R(rd) = t;);
+          // });
   INSTPAT("??????? ????? ????? 011 ????? 11100 11", csrrc  , I, 
-          if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
-          } else {
-            volatile word_t t = csr_read(imm); csr_write(imm, t & ~src1); R(rd) = t;
-          });
+          // if (cpu.priv != PRIV_MODE_M) {
+          //   isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
+          // } else {
+          volatile word_t t = csr_read(imm); csr_write(imm, t & ~src1); R(rd) = t;);
+          // });
   INSTPAT("??????? ????? ????? 111 ????? 11100 11", csrrci , I, 
-          if (cpu.priv != PRIV_MODE_M) {
-            isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
-          } else {
-            volatile word_t t = csr_read(imm); csr_write(imm, t & ~(ZEXT(imm, 32))); R(rd) = t;
-          });
+          // if (cpu.priv != PRIV_MODE_M) {
+          //   isa_raise_intr(EXCP_ILLEGAL_INST, s->pc, R(rd));
+          // } else {
+           volatile word_t t = csr_read(imm); csr_write(imm, t & ~(ZEXT(imm, 32))); R(rd) = t;);
+          // });
 
   
   INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall     , I,
@@ -282,7 +283,7 @@ static int decode_exec(Decode *s) {
           s->dnpc = mret_func(););
   INSTPAT("0001000 00010 00000 000 00000 11100 11", sret      , R,
           s->dnpc = sret_func(););
-  INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R, s->dnpc += 4;);
+  INSTPAT("0001000 00101 00000 000 00000 11100 11", wfi       , R, irq_enable(););
   INSTPAT("0000??? ????? 00000 000 00000 00011 11", fence     , I);
   INSTPAT("0000000 00000 00000 001 00000 00011 11", fence.i   , I);
   INSTPAT("0001001 ????? ????? 000 00000 11100 11", sfence.vma, R);
@@ -335,16 +336,8 @@ static int decode_exec(Decode *s) {
           //       cpu.reserved_addr, src1, cpu.lr_valid, success);
           if (success) {
             Mw(src1, 4, src2); R(rd) = 0;
-            //printf("success...........\n");
-            //printf("src1: %x  src2:%x, R(rd)\n", src1, src2);
           } else {
             R(rd) = 1;
-            // paddr_t paddr = R(rd);
-            // if (isa_mmu_check(paddr, 4, MEM_TYPE_WRITE) == MMU_TRANSLATE) {
-            //   paddr = isa_mmu_translate(paddr, 4, MEM_TYPE_WRITE);
-            // }
-            // R(rd) = 1;
-            //isa_raise_intr(EXCP_STORE_ACCESS, s->pc);
           }
           cpu.lr_valid = false;
           cpu.reserved_addr = 0;

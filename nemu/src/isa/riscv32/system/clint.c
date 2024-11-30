@@ -46,11 +46,6 @@ static void trigger_timer_interrupt() {
     };
     csr_write(CSR_MIP, mip.value);
 
-    if (mip.mtip == true) cpu.INTR = true;
-
-    //printf("mtie: %d\n", clint_base[CLINT_MTIME] >= clint_base[CLINT_MTIMECMP]);
-    //printf("mip: " FMT_WORD "\n", mip.value);
-
     // notice, I don't implement mie in nanos-lite and am,
     // so nemu(hardware) do this this so that nanos-lite could switch different tasks.
     // mie_t mie = {
@@ -60,34 +55,37 @@ static void trigger_timer_interrupt() {
 }
 
 void update_clint() {
-    clint_base[CLINT_MTIME] += TIMEBASE / 10000;
+    //clint_base[CLINT_MTIME] += TIMEBASE / 10000;
 
     // why this can't run? endless loop in futex hash table 
-    //uint64_t uptime = get_time();
-    //clint_base[CLINT_MTIME] = uptime / US_PERCYCLE;
+    uint64_t uptime = get_time();
+    clint_base[CLINT_MTIME] = uptime / US_PERCYCLE;
     //Log("uptime: %ld  CLINT_MTIME: %d  CLINT_MTIMECMP: %d",
     //    uptime, clint_base[CLINT_MTIME], clint_base[CLINT_MTIMECMP]);
 
     trigger_timer_interrupt();
-    cpu.INTR = true;
+    //cpu.INTR = true;
 }
 
-// static uint32_t mtimeh = 0;  // 高32位mtime
+// static uint32_t mtimeh = 0;
 // void update_clint() {
 //     uint64_t uptime = get_time();
 //     uint64_t new_mtime = uptime / US_PERCYCLE;
 // 
-//     // 检查mtime是否溢出
+//     // // 检查mtime 32-bits是否溢出
 //     if (new_mtime < clint_base[CLINT_MTIME]) mtimeh++;
 //     clint_base[CLINT_MTIME] = (uint32_t)new_mtime;
 //     mtimeh = (uint32_t)(new_mtime >> 32);  // 更新mtimeh
 //     clint_base[CLINT_MTIME + 1] = mtimeh;
 // 
-//     clint_base[CLINT_MTIME] += TIMEBASE / 10000;
 // 
-//     bool timer_interrupt = ((uint64_t)clint_base[CLINT_MTIME] >= ((uint64_t)clint_base[CLINT_MTIMECMP] | ((uint64_t)clint_base[CLINT_MTIMECMP + 1] << 32)));
+//     //clint_base[CLINT_MTIME] += TIMEBASE / 10000;
+//     // printf("mtime: 0x%x\n", clint_base[CLINT_MTIME]);
+//     bool timer_interrupt = ((uint64_t)clint_base[CLINT_MTIME] >= 
+//                             ((uint64_t)clint_base[CLINT_MTIMECMP] | 
+//                              ((uint64_t)clint_base[CLINT_MTIMECMP + 1] << 32)));
 //     // printf("mtime:    0x%016lx\n",
-//     //        (uint64_t)clint_base[CLINT_MTIME] | ((uint64_t)clint_base[CLINT_MTIME + 1] << 32));
+//     //       (uint64_t)clint_base[CLINT_MTIME] | ((uint64_t)clint_base[CLINT_MTIME + 1] << 32));
 //     // printf("mtimecmp: 0x%016lx\n",
 //     //        (uint64_t)clint_base[CLINT_MTIMECMP] | ((uint64_t)clint_base[CLINT_MTIMECMP + 1] << 32));
 // 
@@ -96,23 +94,10 @@ void update_clint() {
 //     if (timer_interrupt) {
 //         mip.mtip = 1;
 //         csr_write(CSR_MIP, mip.value);
-//         cpu.INTR = true;
-//         //printf("mip.value: " FMT_WORD "\n", mip.value);
 //     }
-//     //printf("mtime: " FMT_WORD "  mtimecmp: " FMT_WORD "\n",
-//     //       clint_base[CLINT_MTIME], clint_base[CLINT_MTIMECMP]);
-// 
-// 
-//     //Log("uptime: %ld  CLINT_MTIME: %d  CLINT_MTIMECMP: %d",
-//     //    uptime, clint_base[CLINT_MTIME], clint_base[CLINT_MTIMECMP]);
 // 
 //     //trigger_timer_interrupt();
-//     //trigger_software_interrupt();
-// 
-//     //if (timer_interrupt)
-//     //    isa_raise_intr(0x80000007, cpu.pc, 0);
 // }
-
 #endif
 
 static void clint_io_handler(uint32_t offset, int len, bool is_write) {

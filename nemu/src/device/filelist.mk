@@ -23,6 +23,7 @@ SRCS-$(CONFIG_HAS_AUDIO) += src/device/audio.c
 SRCS-$(CONFIG_HAS_DISK) += src/device/disk.c
 SRCS-$(CONFIG_HAS_SDCARD) += src/device/sdcard.c
 SRCS-$(CONFIG_HAS_PLIC) += src/device/plic.c
+SRCS-$(CONFIG_HAS_SYSCON) += src/device/syscon.c
 
 
 SRCS-BLACKLIST-$(CONFIG_TARGET_AM) += src/device/alarm.c

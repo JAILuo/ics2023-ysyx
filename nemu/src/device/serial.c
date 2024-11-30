@@ -1,5 +1,6 @@
 /***************************************************************************************
-* Copyright (c) 2014-2022 Zihao Yu, Nanjing University
+* Copyright (c) 2014-2021 Zihao Yu, Nanjing University
+* Copyright (c) 2020-2022 Institute of Computing Technology, Chinese Academy of Sciences
 *
 * NEMU is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
@@ -15,12 +16,12 @@
 
 #include <utils.h>
 #include <device/map.h>
-#include <device/keyboard.h>
 
 /* http://en.wikibooks.org/wiki/Serial_Programming/8250_UART_Programming */
 // NOTE: this is compatible to 16550
 
 #define CH_OFFSET 0
+#define LSR_OFFSET 5
 
 #define REG_RBR  0  // read mode: Receiver buffer reg
 #define REG_THR  0  // write mode: Transmit Holding Reg
@@ -33,269 +34,152 @@
 #define REG_MSR  6  // read mode: Modem Status Reg
 #define REG_SCR  7  // scratch
 
+#define UART_DLL  0  // LSB of divisor Latch when enabled
+#define UART_DLM  1  // MSB of divisor Latch when enabled
+
+
+#define LSR_TX_READY 0x20
+#define LSR_FIFO_EMPTY 0x40
+#define LSR_RX_READY 0x01
+
 static uint8_t *serial_base = NULL;
 
-static void serial_putc(char ch) {
-  //MUXDEF(CONFIG_TARGET_AM, putch(ch), putc(ch, stderr));
-  //fflush(stderr);
-  printf("%c", ch);
-  fflush(stdout);
+#include <stdio.h>
+
+//#define CONFIG_SERIAL_INPUT_FIFO
+
+#ifdef CONFIG_SERIAL_INPUT_FIFO
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <errno.h>
+
+#define QUEUE_SIZE 1024
+static char queue[QUEUE_SIZE] = {};
+static int f = 0, r = 0;
+#define FIFO_PATH "/tmp/nemu-serial"
+static int fifo_fd = 0;
+
+static void serial_enqueue(char ch) {
+  int next = (r + 1) % QUEUE_SIZE;
+  if (next != f) {
+    // not full
+    queue[r] = ch;
+    r = next;
+  }
 }
 
-// static char serial_getc(void) {
-//     return getchar();
-// }
+static char serial_dequeue() {
+  char ch = 0xff;
+  if (f != r) {
+    ch = queue[f];
+    f = (f + 1) % QUEUE_SIZE;
+  }
+  return ch;
+}
 
-extern uint32_t key_dequeue();
-extern int key_f;
-extern int key_r;
+static inline uint8_t serial_rx_ready_flag() {
+  static uint32_t last = 0; // unit: s
+  uint32_t now = get_time() / 1000000;
+  if (now > last) {
+    //Log("now = %d", now);
+    last = now;
+  }
 
-static int serial_getc(void) {
-    // 从键盘队列中获取一个字符
-    uint32_t key = key_dequeue();
-    if (key != NEMU_KEY_NONE) {
-        // 将按键扫描码转换为字符
-        int ch = (key & 0xFF);
-        return ch;
+  if (f == r) {
+    char input[256];
+    // First open in read only and read
+    int ret = read(fifo_fd, input, 256);
+    assert(ret < 256);
+
+    if (ret > 0) {
+      int i;
+      for (i = 0; i < ret; i ++) {
+        serial_enqueue(input[i]);
+      }
     }
-    return -1; // 如果队列中没有数据，返回-1
+  }
+  return (f == r ? 0 : LSR_RX_READY);
 }
 
+#define rt_thread_cmd "memtrace\n"
+#define busybox_cmd "ls\n" \
+  "cd /root\n" \
+  "echo hello2\n" \
+  "cd /root/benchmark\n" \
+  "./stream\n" \
+  "echo hello3\n" \
+  "cd /root/redis\n" \
+  "ls\n" \
+  "ifconfig -a\n" \
+  "ls\n" \
+  "./redis-server\n" \
+
+#define debian_cmd "root\n" \
+
+static void preset_input() {
+  char buf[] = debian_cmd;
+  int i;
+  for (i = 0; i < strlen(buf); i ++) {
+    serial_enqueue(buf[i]);
+  }
+}
+
+static void init_fifo() {
+  int ret = mkfifo(FIFO_PATH, 0666);
+  assert(ret == 0 || errno == EEXIST);
+  fifo_fd = open(FIFO_PATH, O_RDONLY | O_NONBLOCK);
+  assert(fifo_fd != -1);
+}
+
+#endif
 
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {
-    assert(len == 1);
-    switch (offset) {
+  assert(len == 1);
+  switch (offset) {
     /* We bind the serial port with the host stderr in NEMU. */
-    case CH_OFFSET: // Receiver buffer reg and Transmit Holding Reg
-        if (is_write) { // THR
-            serial_putc(serial_base[REG_THR]);
-            serial_base[REG_LSR] = 0xff; // bit6: transmit empty	 bit7: transmit holding empty
-        } else { // RBR
-            // printf("da08012n3\n");
-            // uint32_t key = key_dequeue();
-            // if (key != NEMU_KEY_NONE) {
-            //     serial_base[REG_RBR] = key;
-            //     serial_base[REG_LSR] |= (1 << 0); // bit0: data ready
-            // } else {
-            //     // 如果没有数据，确保LSR的bit0不被设置
-            //     serial_base[REG_LSR] &= ~(1 << 0);
-            // }
-           printf("serial_base[REG_RBR]: %d\n", serial_base[REG_RBR]);
-            int ch = serial_getc();
-            if (ch != -1) {
-                serial_base[REG_RBR] = ch;
-                serial_base[REG_LSR] |= (1 << 0); // 设置LSR的可读位
-            }
-            serial_base[REG_LSR] = 0xff; // bit6: transmit empty	 bit7: transmit holding empty
-        }
-        break;
-    case 1: // interrupt enable reg
-        serial_base[REG_IER] = 0xff;
-        break;
-    case 2: // FIFO control Reg and Interrupt Status Reg
-        //serial_base[REG_FCR] &= ~(1 << 0); // bit 0: FIFO enable
-        serial_base[REG_FCR] &= 0xff; // bit 0: FIFO enable
-        break;
-    case 3: // Line Control Reg
-        //serial_base[REG_LCR] |= ((1 << 0) | (1 << 1)); // 8-bits
-        serial_base[REG_LCR] |= 0xff;// 8-bits
-        break;
-    case 4: // Modem Control Reg
-        //serial_base[REG_MCR] = 0;
-        serial_base[REG_MCR] = 0xff;
-        break;
-    case 5: // Line Status Reg
-        //serial_base[REG_LSR] &= ~((1 << 0) | (1 << 5));
-        // LSR寄存器的读取操作，根据当前的状态返回值
-        // if (!is_write) {
-        //     // bit6: transmit empty, bit7: transmit holding empty
-        //     // 假设TX总是空闲的
-        //     serial_base[REG_LSR] |= 0x60;
-        //     if (key_f != key_r) {
-        //         serial_base[REG_LSR] |= (1 << 0); // 有数据可读，置位bit0
-        //     } else {
-        //         serial_base[REG_LSR] &= ~(1 << 0); // 没有数据可读，清0 bit0
-        //     }
-        // }
-        serial_base[REG_LSR] = 0xff;
-        break;
-    case 6: // Modem Status Reg
-        serial_base[REG_IER] = 0xff;
-        break;
-        serial_base[REG_IER] = 0xff;
-    case 7: //scratch
-        serial_base[REG_SCR] = 0xff;
-        break;
-    default: panic("do not support offset = %d", offset);
-    }
+    case CH_OFFSET:
+      if (is_write) putc(serial_base[0], stderr);
+      //else serial_base[0] = serial_dequeue();
+      else serial_base[0] = MUXDEF(CONFIG_SERIAL_INPUT_FIFO, serial_dequeue(), 0xff);
+      break;
+    case LSR_OFFSET:
+      if (!is_write) {
+        //serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY |serial_rx_ready_flag();
+        serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY | MUXDEF(CONFIG_SERIAL_INPUT_FIFO, serial_rx_ready_flag(), 0);
+      }
+      break;
+  }
 }
 
-// #define FIFO_SIZE 16
-// static uint8_t tx_fifo[FIFO_SIZE];
-// static uint8_t rx_fifo[FIFO_SIZE];
-// static int tx_fifo_head = 0;
-// static int tx_fifo_tail = 0;
-// static int rx_fifo_head = 0;
-// static int rx_fifo_tail = 0;
+void uart_init() {
+    serial_base[REG_IER] = 0x00;
 
-// static void serial_putc(char ch) {
-//     if (tx_fifo_head != FIFO_SIZE) {
-//         int next_tail = (tx_fifo_tail + 1) % FIFO_SIZE;
-//         if (next_tail != tx_fifo_head) {
-//             tx_fifo[tx_fifo_tail] = ch;
-//             tx_fifo_tail = next_tail;
-//         }
-//     }
-// }
-// 
-// static char serial_getc(void) {
-//     if (rx_fifo_tail != rx_fifo_head) {
-//         char ch = rx_fifo[rx_fifo_head];
-//         rx_fifo_head = (rx_fifo_head + 1) % FIFO_SIZE;
-//         return ch;
-//     }
-//     return -1; // No data available
-// }
+    serial_base[REG_IER] = 0x80;
+    serial_base[REG_LCR] = 0x03;
+    
+    serial_base[UART_DLL] = 0x03;
+    serial_base[UART_DLM] = 0x00;
 
- 
-// static void serial_io_handler(uint32_t offset, int len, bool is_write) {
-//     assert(len == 1);
-//     switch (offset) {
-//         case CH_OFFSET: // Receiver buffer reg and Transmit Holding Reg
-//             if (is_write) { // THR
-//                 char ch = serial_base[REG_THR];
-//                 if (tx_fifo_head != FIFO_SIZE) {
-//                     int next_head = (tx_fifo_head + 1) % FIFO_SIZE;
-//                     if (next_head != tx_fifo_tail) {
-//                         tx_fifo[tx_fifo_head] = ch;
-//                         tx_fifo_head = next_head;
-//                     }
-//                 }
-//                 serial_base[REG_LSR] &= ~(1 << 5); // Clear THRE
-//             } else { // RBR
-//                 if (rx_fifo_tail != rx_fifo_head) {
-//                     serial_base[REG_RBR] = rx_fifo[rx_fifo_tail];
-//                     rx_fifo_tail = (rx_fifo_tail + 1) % FIFO_SIZE;
-//                     serial_base[REG_LSR] |= (1 << 0); // Set RDR
-//                 } else {
-//                     serial_base[REG_RBR] = 0;
-//                     serial_base[REG_LSR] &= ~(1 << 0); // Clear RDR
-//                 }
-//             }
-//             break;
-//         case REG_IER: // interrupt enable reg
-//             if (is_write) {
-//                 serial_base[REG_IER] = serial_base[offset];
-//             }
-//             break;
-//         case REG_FCR: // FIFO control Reg
-//             if (is_write) {
-//                 serial_base[REG_FCR] = serial_base[offset];
-//                 // Handle FIFO reset if needed
-//                 if (serial_base[REG_FCR] & (1 << 1)) {
-//                     memset(rx_fifo, 0, sizeof(rx_fifo));
-//                     rx_fifo_head = rx_fifo_tail = 0;
-//                 }
-//                 if (serial_base[REG_FCR] & (1 << 2)) {
-//                     memset(tx_fifo, 0, sizeof(tx_fifo));
-//                     tx_fifo_head = tx_fifo_tail = 0;
-//                 }
-//             }
-//             break;
-//         case REG_LCR: // Line Control Reg
-//             if (is_write) {
-//                 serial_base[REG_LCR] = serial_base[offset];
-//             }
-//             break;
-//         case REG_MCR: // Modem Control Reg
-//             if (is_write) {
-//                 serial_base[REG_MCR] = serial_base[offset];
-//             }
-//             break;
-//         case REG_LSR: // Line Status Reg
-//             if (!is_write) {
-//                 uint8_t lsr = 0;
-//                 lsr |= (rx_fifo_tail != rx_fifo_head) ? (1 << 0) : 0; // RDR
-//                 lsr |= (tx_fifo_head == tx_fifo_tail) ? (1 << 5) : 0; // THRE
-//                 lsr |= (0) ? (1 << 6) : 0; // TEMT
-//                 serial_base[REG_LSR] = lsr;
-//             }
-//             break;
-//         case REG_MSR: // Modem Status Reg
-//             if (!is_write) {
-//                 serial_base[REG_MSR] = 0xB0; // Default value
-//             }
-//             break;
-//         case REG_SCR: // scratch
-//             break;
-//         default:
-//             printf("Unsupported offset = %d\n", offset);
-//             exit(1);
-//     }
-// }
+    serial_base[REG_LCR] = 0x03;
+    serial_base[REG_FCR] = 0x07;
+    serial_base[REG_IER] = 0X01;
 
-
-// static void serial_io_handler(uint32_t offset, int len, bool is_write) {
-//     assert(len == 1);
-//     switch (offset) {
-//     case CH_OFFSET: // Receiver buffer reg and Transmit Holding Reg
-//         if (is_write) { // THR
-//             serial_putc(serial_base[REG_THR]);
-//             serial_base[REG_LSR] &= ~(1 << 5); // Clear THRE
-//         } else { // RBR
-//             char ch = serial_getc();
-//             if (ch != -1) {
-//                 serial_base[REG_RBR] = ch;
-//                 serial_base[REG_LSR] |= (1 << 0); // Set RDR
-//             }
-//         }
-//         break;
-//     case REG_IER: // interrupt enable reg
-//         serial_base[REG_IER] = is_write ? serial_base[offset] : 0;
-//         break;
-//     case REG_FCR: // FIFO control Reg
-//         if (is_write) {
-//             serial_base[REG_FCR] = serial_base[offset];
-//             // Handle FIFO reset if needed
-//         }
-//         break;
-//     case REG_LCR: // Line Control Reg
-//         serial_base[REG_LCR] = is_write ? serial_base[offset] : 0;
-//         break;
-//     case REG_MCR: // Modem Control Reg
-//         serial_base[REG_MCR] = is_write ? serial_base[offset] : 0;
-//         break;
-//     case REG_LSR: // Line Status Reg
-//         if (!is_write) {
-//             uint8_t lsr = serial_base[REG_LSR];
-//             lsr |= (rx_fifo_head != rx_fifo_tail) ? (1 << 0) : 0; // RDR
-//             lsr |= (tx_fifo_head == tx_fifo_tail) ? (1 << 5) : 0; // THRE
-//             serial_base[REG_LSR] = lsr;
-//         }
-//         break;
-//     case REG_MSR: // Modem Status Reg
-//         // Handle MSR read if needed
-//         break;
-//     case REG_SCR: // scratch
-//         break;
-//     default:
-//         panic("Unsupported offset = %d\n", offset);
-//     }
-// }
-
-void uart8250_init(void) {
-    serial_base = new_space(8);
-    assert(serial_base != NULL);
-    memset(serial_base, 0, 8);
-    //serial_base[REG_LSR] = 0x60; // Default value with THRE and TEMT set
 }
 
 void init_serial() {
-  uart8250_init();
+  printf("init_serial\n");
+  serial_base = new_space(8);
 #ifdef CONFIG_HAS_PORT_IO
   add_pio_map ("serial", CONFIG_SERIAL_PORT, serial_base, 8, serial_io_handler);
 #else
   add_mmio_map("serial", CONFIG_SERIAL_MMIO, serial_base, 8, serial_io_handler);
 #endif
 
+  uart_init();
+#ifdef CONFIG_SERIAL_INPUT_FIFO
+  init_fifo();
+  preset_input();
+#endif
 }

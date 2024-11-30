@@ -11,7 +11,7 @@ ARCHIVE   = $(WORK_DIR)/build/$(NAME)-$(ARCH).a
 
 ISA = riscv32
 DTB_FILE = $(NEMU_HOME)/src/isa/riscv32/dts/nemu.dtb
-IMAGE = $(NEMU_HOME)/../linux/buildroot/output/images/Image
+IMAGE = /home/jai/ysyx-workbench/linux/buildroot/output/images/Image
 ELF = /home/jai/ysyx-workbench/linux/buildroot/output/images/vmlinux
 
 NEMUFLAGS += -l $(shell dirname $(IMAGE).elf)/nemu-log.txt
