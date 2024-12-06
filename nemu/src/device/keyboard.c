@@ -32,7 +32,7 @@ static void init_keymap() {
 
 #define KEY_QUEUE_LEN 1024
 static int key_queue[KEY_QUEUE_LEN] = {};
-int key_f = 0, key_r = 0;
+static int key_f = 0, key_r = 0;
 
 bool is_key_pressed() {
     // 检查队列是否非空

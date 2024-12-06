@@ -16,6 +16,10 @@
 
 #include <utils.h>
 #include <device/map.h>
+#include "device/alarm.h"
+#include <unistd.h>
+#include <sys/ioctl.h>
+
 
 /* http://en.wikibooks.org/wiki/Serial_Programming/8250_UART_Programming */
 // NOTE: this is compatible to 16550
@@ -55,104 +59,200 @@ static uint8_t *serial_base = NULL;
 #include <unistd.h>
 #include <errno.h>
 
-#define QUEUE_SIZE 1024
-static char queue[QUEUE_SIZE] = {};
-static int f = 0, r = 0;
-#define FIFO_PATH "/tmp/nemu-serial"
-static int fifo_fd = 0;
+#define UART_FIFO_SIZE 1024
+static char rx_fifo[UART_FIFO_SIZE] = {};
+//static char tx_fifo[UART_FIFO_SIZE];
+// 进的一端称为队尾（rear），出的一端称为队头（front）。
+static int rx_fifo_head = 0, rx_fifo_tail = 0;
+// static int tx_fifo_head = 0, tx_fifo_tail = 0;
 
-static void serial_enqueue(char ch) {
-  int next = (r + 1) % QUEUE_SIZE;
-  if (next != f) {
+#define RX_FIFO_PATH "/tmp/nemu-serial"
+//#define TX_FIFO_PATH "/tmp/nemu-serial-tx"
+static int rx_fifo_fd = -1;
+//static int tx_fifo_fd = -1;
+
+
+// static void serial_enqueue_tx(char ch) {
+//     if ((tx_fifo_head + 1) % UART_FIFO_SIZE != tx_fifo_tail) {
+//         tx_fifo[tx_fifo_head] = ch;
+//         tx_fifo_head = (tx_fifo_head + 1) % UART_FIFO_SIZE;
+//     }
+// }
+// 
+// static char serial_dequeue_tx() {
+//     char ch = 0xff;
+//     if (tx_fifo_head != tx_fifo_tail) {
+//         ch = tx_fifo[tx_fifo_tail];
+//         tx_fifo_tail = (tx_fifo_tail + 1) % UART_FIFO_SIZE;
+//     }
+//     return ch;
+// }
+
+static void serial_enqueue_rx(char ch) {
+  int next = (rx_fifo_head + 1) % UART_FIFO_SIZE;
+  if (next != rx_fifo_tail) {
     // not full
-    queue[r] = ch;
-    r = next;
+    rx_fifo[rx_fifo_tail] = ch;
+    rx_fifo_tail = next;
   }
 }
 
-static char serial_dequeue() {
+static char serial_dequeue_rx() {
   char ch = 0xff;
-  if (f != r) {
-    ch = queue[f];
-    f = (f + 1) % QUEUE_SIZE;
+  if (rx_fifo_head != rx_fifo_tail) {
+    ch = rx_fifo[rx_fifo_head];
+    rx_fifo_head = (rx_fifo_head + 1) % UART_FIFO_SIZE;
   }
   return ch;
 }
 
 static inline uint8_t serial_rx_ready_flag() {
-  static uint32_t last = 0; // unit: s
-  uint32_t now = get_time() / 1000000;
-  if (now > last) {
-    //Log("now = %d", now);
-    last = now;
-  }
+  // static uint32_t last = 0; // unit: s
+  // uint32_t now = get_time() / 1000000;
+  // if (now > last) {
+  //   //Log("now = %d", now);
+  //   last = now;
+  // }
 
-  if (f == r) {
+  if (rx_fifo_head == rx_fifo_tail) {
     char input[256];
     // First open in read only and read
-    int ret = read(fifo_fd, input, 256);
+    int ret = read(rx_fifo_fd, input, 256);
     assert(ret < 256);
 
     if (ret > 0) {
       int i;
       for (i = 0; i < ret; i ++) {
-        serial_enqueue(input[i]);
+        serial_enqueue_rx(input[i]);
       }
     }
   }
-  return (f == r ? 0 : LSR_RX_READY);
-}
-
-#define rt_thread_cmd "memtrace\n"
-#define busybox_cmd "ls\n" \
-  "cd /root\n" \
-  "echo hello2\n" \
-  "cd /root/benchmark\n" \
-  "./stream\n" \
-  "echo hello3\n" \
-  "cd /root/redis\n" \
-  "ls\n" \
-  "ifconfig -a\n" \
-  "ls\n" \
-  "./redis-server\n" \
-
-#define debian_cmd "root\n" \
-
-static void preset_input() {
-  char buf[] = debian_cmd;
-  int i;
-  for (i = 0; i < strlen(buf); i ++) {
-    serial_enqueue(buf[i]);
-  }
+  return (rx_fifo_head == rx_fifo_tail ? 0 : LSR_RX_READY);
 }
 
 static void init_fifo() {
-  int ret = mkfifo(FIFO_PATH, 0666);
-  assert(ret == 0 || errno == EEXIST);
-  fifo_fd = open(FIFO_PATH, O_RDONLY | O_NONBLOCK);
-  assert(fifo_fd != -1);
+    int ret = mkfifo(RX_FIFO_PATH, 0666);
+    assert(ret == 0 || errno == EEXIST);
+    rx_fifo_fd = open(RX_FIFO_PATH, O_RDONLY | O_NONBLOCK);
+    assert(rx_fifo_fd != -1);
+
 }
 
+// TODO: add funciton to judge FIFO is empty
+
 #endif
+
+static int is_eofd;
+
+static int ReadKBByte()
+{
+    if( is_eofd ) return 0xffffffff;
+    char rxchar = 0;
+    int rread = read(fileno(stdin), (char*)&rxchar, 1);
+
+    if( rread > 0 ) // Tricky: getchar can't be used with arrow keys.
+        return rxchar;
+    else
+        return -1;
+}
+
+static int IsKBHit()
+{
+    if( is_eofd ) return -1;
+    int byteswaiting;
+    ioctl(0, FIONREAD, &byteswaiting);
+    if( !byteswaiting && write( fileno(stdin), 0, 0 ) != 0 ) { is_eofd = 1; return -1; } // Is end-of-file for
+    return !!byteswaiting;
+}
+
+// void handle_keyboard_input() {
+//   if (IsKBHit()) {
+//     char ch = ReadKBByte();
+//     serial_enqueue_rx(ch);
+//   }
+// }
+
+// static void serial_putc() {
+//     while (tx_fifo_head != tx_fifo_tail) {
+//         char ch = serial_dequeue_tx();
+//         putc(ch, stdout);  // 将TX FIFO中的数据输出到屏幕
+//         fflush(stdout);
+//     }
+// }
+// 
+// static void serial_io_handler(uint32_t offset, int len, bool is_write) {
+//   assert(len == 1);
+//   switch (offset) {
+//     case CH_OFFSET:
+//       if (is_write) {
+//         serial_enqueue_tx(serial_base[0]);
+//         serial_putc();
+//         //putc(serial_base[0], stdout);
+//         //fflush(stdout);
+//       } else {
+//         //handle_keyboard_input(); // 处理键盘输入并将其放入FIFO队列
+//         if (rx_fifo_head != rx_fifo_tail) {
+//           serial_base[0] = serial_dequeue_rx(); // 从FIFO队列中读取数据
+//         } else {
+//           serial_base[0] = 0;
+//         }
+//       }
+//       break;
+//     case LSR_OFFSET:
+//       if (!is_write) {
+//         serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY | serial_rx_ready_flag() | IsKBHit();
+//       }
+//       break;
+//   }
+// }
 
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {
   assert(len == 1);
   switch (offset) {
     /* We bind the serial port with the host stderr in NEMU. */
     case CH_OFFSET:
-      if (is_write) putc(serial_base[0], stderr);
-      //else serial_base[0] = serial_dequeue();
-      else serial_base[0] = MUXDEF(CONFIG_SERIAL_INPUT_FIFO, serial_dequeue(), 0xff);
+      if (is_write) {
+          putc(serial_base[0], stderr);
+          fflush(stderr);
+      //}else serial_base[0] = serial_derx_fifo();
+      //} else serial_base[0] = MUXDEF(CONFIG_SERIAL_INPUT_FIFO, serial_derx_fifo(), 0xff);
+      } else serial_base[0] = ReadKBByte();
       break;
     case LSR_OFFSET:
       if (!is_write) {
-        //serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY |serial_rx_ready_flag();
-        serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY | MUXDEF(CONFIG_SERIAL_INPUT_FIFO, serial_rx_ready_flag(), 0);
+        //serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY | serial_rx_ready_flag() | IsKBHit();
+        //serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY | MUXDEF(CONFIG_SERIAL_INPUT_FIFO, serial_rx_ready_flag(), 0) ;
+        serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY | IsKBHit();
       }
       break;
   }
 }
 
+// static void serial_io_handler(uint32_t offset, int len, bool is_write) {
+//   assert(len == 1);
+//   switch (offset) {
+//     case CH_OFFSET:
+//       if (is_write) {
+//         putc(serial_base[0], stdout);
+//         fflush(stdout);
+//       } else {
+//         //handle_keyboard_input(); // 处理键盘输入并将其放入FIFO队列
+//         if (rx_fifo_head != rx_fifo_tail) {
+//           serial_base[0] = serial_dequeue_rx(); // 从FIFO队列中读取数据
+//         } else {
+//           serial_base[0] = 0;
+//         }
+//       }
+//       break;
+//     case LSR_OFFSET:
+//       if (!is_write) {
+//         serial_base[5] = LSR_TX_READY | LSR_FIFO_EMPTY | serial_rx_ready_flag() | IsKBHit();
+//       }
+//       break;
+//   }
+// }
+
+// this should done by firmware/OS? openSBI? os?
 void uart_init() {
     serial_base[REG_IER] = 0x00;
 
@@ -177,9 +277,8 @@ void init_serial() {
   add_mmio_map("serial", CONFIG_SERIAL_MMIO, serial_base, 8, serial_io_handler);
 #endif
 
-  uart_init();
 #ifdef CONFIG_SERIAL_INPUT_FIFO
   init_fifo();
-  preset_input();
 #endif
+    //add_alarm_handle(handle_keyboard_input);
 }

@@ -15,6 +15,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <threads.h>
 #include "common.h"
 #include "debug.h"
 #include "include/isa-def.h"
@@ -27,6 +28,8 @@
 #include <cpu/cpu.h>
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
+
+static mtx_t mutex;
 
 #define R(i) gpr(i)
 #define Mr vaddr_read
@@ -345,57 +348,75 @@ static int decode_exec(Decode *s) {
 
   // In single core, locking is achieved by turning off the interrupt(mstatus.mie)
   INSTPAT("00001?? ????? ????? 010 ????? 01011 11", amoswap.w, R,
+          mtx_lock(&mutex);
           irq_disable();
           volatile word_t t = Mr(src1, 4); Mw(src1, 4, src2); R(rd) = SEXT(t, 32);
           irq_enable();
+          mtx_unlock(&mutex);
           );
   INSTPAT("00000?? ????? ????? 010 ????? 01011 11", amoadd.w , R,
           //irq_disable();
+          mtx_lock(&mutex);
           volatile word_t t = Mr(src1, 4); Mw(src1, 4, t + src2); R(rd) = SEXT(t, 32);
+          mtx_unlock(&mutex);
           //irq_enable();
           );
   INSTPAT("00100?? ????? ????? 010 ????? 01011 11", amoxor.w , R,
           //irq_disable();
+          mtx_lock(&mutex);
           volatile word_t t = Mr(src1, 4); Mw(src1, 4, t ^ src2); R(rd) = SEXT(t, 32);
+          mtx_unlock(&mutex);
           //irq_enable();
           );
   INSTPAT("01100?? ????? ????? 010 ????? 01011 11", amoand.w , R,
           //irq_disable();
+          mtx_lock(&mutex);
           volatile word_t t = Mr(src1, 4); Mw(src1, 4, t & src2); R(rd) = SEXT(t, 32);
+          mtx_unlock(&mutex);
           //irq_enable();
           );
   INSTPAT("01000?? ????? ????? 010 ????? 01011 11", amoor.w  , R,
           //irq_disable();
+          mtx_lock(&mutex);
           volatile word_t t = Mr(src1, 4); Mw(src1, 4, t | src2); R(rd) = SEXT(t, 32);
+          mtx_unlock(&mutex);
           //irq_enable();
           );
 
   INSTPAT("10000?? ????? ????? 010 ????? 01011 11", amomin.w , R,
           //irq_disable();
+          mtx_lock(&mutex);
           volatile word_t t = Mr(src1, 4);
           Mw(src1, 4, (int32_t)t < (int32_t)src2 ? t : src2);
           R(rd) = SEXT(t, 32);
+          mtx_unlock(&mutex);
           //irq_enable();
           );
   INSTPAT("10100?? ????? ????? 010 ????? 01011 11", amomax.w , R,
           //irq_disable();
+          mtx_lock(&mutex);
           volatile word_t t = Mr(src1, 4);
           Mw(src1, 4, (int32_t)t > (int32_t)src2 ? t : src2);
           R(rd) = SEXT(t, 32);
+          mtx_unlock(&mutex);
           //irq_enable();
           );
   INSTPAT("11000?? ????? ????? 010 ????? 01011 11", amominu.w, R,
           //irq_disable();
+          mtx_lock(&mutex);
           volatile word_t t = Mr(src1, 4);
           Mw(src1, 4, (uint32_t)t < (uint32_t)src2 ? t : src2);
           R(rd) = SEXT(t, 32);
+          mtx_unlock(&mutex);
           //irq_enable();
           );
   INSTPAT("11100?? ????? ????? 010 ????? 01011 11", amomaxu.w, R,
           //irq_disable();
+          mtx_lock(&mutex);
           volatile word_t t = Mr(src1, 4);
           Mw(src1, 4, (uint32_t)t > (uint32_t)src2 ? t : src2);
           R(rd) = SEXT(t, 32);
+          mtx_unlock(&mutex);
           //irq_enable();
           );
 
