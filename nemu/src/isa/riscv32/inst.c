@@ -16,6 +16,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <threads.h>
+#include <stdbool.h>
+
+#include <utils.h>
+#include <cpu/cpu.h>
+#include <cpu/ifetch.h>
+#include <cpu/decode.h>
 #include "common.h"
 #include "debug.h"
 #include "include/isa-def.h"
@@ -23,11 +29,6 @@
 #include "local-include/reg.h"
 #include "local-include/csr.h"
 #include "macro.h"
-#include <stdbool.h>
-#include <utils.h>
-#include <cpu/cpu.h>
-#include <cpu/ifetch.h>
-#include <cpu/decode.h>
 
 static mtx_t mutex;
 
@@ -68,7 +69,6 @@ static word_t mret_func(void) {
     return cpu.csr.mepc;
 }
 
-
 static word_t sret_func(void) {
     sstatus_t sstatus_tmp = {.value = csr_read(CSR_SSTATUS)};
     mstatus_t mstatus_tmp = {.value = csr_read(CSR_MSTATUS)};
@@ -90,6 +90,10 @@ static word_t sret_func(void) {
 //     mstatus_tmp.mie = 1;
 //     csr_write(CSR_MSTATUS, mstatus_tmp.value);
 // }
+
+//TODO: maybe can optimize the rv32, use a more common func to cover mul, mulh, mulhu...
+
+
 
 /** 
  * you may forget add sext for your instruction
@@ -324,6 +328,7 @@ static int decode_exec(Decode *s) {
   /* RV32A Extension for Atomic Instructions*/
   // 31         25 24 20 19 15  14 12 11 7  6     0
   // 00010   aq rl 00000 rs1       010    rd      0101111
+  // TODO:Now it's just a simulation of the behavior, but it's not correct
   INSTPAT("00010?? 00000 ????? 010 ????? 01011 11", lr.w   , R, 
           cpu.reserved_addr = src1;
           //printf("now pc: %x\n", cpu.pc);
@@ -419,6 +424,8 @@ static int decode_exec(Decode *s) {
           mtx_unlock(&mutex);
           //irq_enable();
           );
+
+  /* RV32F, RV32D TODO*/
 
   /* add more... */
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));

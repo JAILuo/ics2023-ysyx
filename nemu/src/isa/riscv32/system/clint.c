@@ -48,10 +48,10 @@ static void trigger_timer_interrupt() {
 
     // notice, I don't implement mie in nanos-lite and am,
     // so nemu(hardware) do this this so that nanos-lite could switch different tasks.
-    // mie_t mie = {
-    //     .mtie = (clint_base[CLINT_MTIME] >= clint_base[CLINT_MTIMECMP])
-    // };
-    // csr_write(CSR_MIE, mie.value);
+    mie_t mie = {
+        .mtie = (clint_base[CLINT_MTIME] >= clint_base[CLINT_MTIMECMP])
+    };
+    csr_write(CSR_MIE, mie.value);
 }
 
 void update_clint() {

@@ -16,6 +16,8 @@
 #include <isa.h>
 #include <memory/paddr.h>
 
+#define MY__MMU_SUPPORT__
+
 #ifndef MY__MMU_SUPPORT__
 word_t vaddr_ifetch(vaddr_t addr, int len) {
   return paddr_read(addr, len);

@@ -173,13 +173,11 @@ void irq_disable(void) {
 #define INTR_BIT (1ULL << 31)
 #endif
 
-#define IRQ_TIMER 0x80000007
-
 word_t isa_query_intr() {
     mie_t mie = {.value = csr_read(CSR_MIE)};
     mip_t mip = {.value = csr_read(CSR_MIP)};
 
-    // 如果MIE和MIP之间没有共同的位被设置，则没有中断
+    // If no common bits are set between the MIE and MIP, there is no interrupt
     if (!(mie.value & mip.value)) return INTR_EMPTY;
 
     const int priority[] = {

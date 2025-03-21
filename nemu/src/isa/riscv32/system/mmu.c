@@ -38,6 +38,11 @@
 
 typedef paddr_t PTE;
 
+/**
+ * PGSIZE = 4KB 
+ * PTE_SIZE = 4Byte
+ */
+
 // 对内存区间为[vaddr, vaddr + len), 类型为type的内存访问进行地址转换
 paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type) {
     paddr_t pt_base_reg = cpu.csr.satp;

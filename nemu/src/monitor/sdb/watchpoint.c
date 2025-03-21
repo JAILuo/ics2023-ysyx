@@ -100,7 +100,7 @@ void watch_wp(char *expr, int result) {
     if (len > sizeof(wp->expr) - 1) {
         len = sizeof(wp->expr) - 1;
     }
-    strncpy(wp->expr, expr,len);
+    strncpy(wp->expr, expr, len);
     wp->expr[len] = '\0';
 
     wp->old_result = result;

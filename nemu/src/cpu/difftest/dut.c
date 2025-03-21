@@ -73,7 +73,6 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
   //       exit(-1);
   // }
 
-
   ref_difftest_memcpy = dlsym(handle, "difftest_memcpy");
   assert(ref_difftest_memcpy);
 

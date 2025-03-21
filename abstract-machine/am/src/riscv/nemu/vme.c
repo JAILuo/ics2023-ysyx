@@ -57,6 +57,15 @@ void protect(AddrSpace *as) {
   as->pgsize = PGSIZE;
   // map kernel space
   memcpy(updir, kas.ptr, PGSIZE);
+  /**
+   * This is similar to pgd_alloc in Linux, 
+   * except that Linux will be described by pgd, pud, pmd, and pte
+   *    arch/riscv/include/asm/pgalloc.h
+   *
+   * Additionally, Instead of copying the entire page table directly,
+   * it should only pick the part that describes the kernel space to copy, 
+   * but it's okay to do so just initialization? Doubt
+   */
 }
 
 void unprotect(AddrSpace *as) {
